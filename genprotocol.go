@@ -107,6 +107,7 @@ func main() {
 		"_packet",
 		"_version",
 		"_wasmconn",
+		"_wsgorilla",
 	}
 
 	cmddatafile := path.Join(*basedir, *prefix+"_gendata", "command.data")
@@ -173,6 +174,9 @@ func main() {
 
 	buf, err = buildWasmConn(*prefix)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_wasmconn", "wasmconn_gen.go"))
+
+	buf, err = buildWSGorilla(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_wsgorilla", "wsgorilla_gen.go"))
 }
 
 func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
@@ -560,15 +564,15 @@ func buildPacket(prefix string) (*bytes.Buffer, error) {
 		case Request:
 			return fmt.Sprintf(
 				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
-				h.FlowType, c2t_idcmd.CommandID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		case Response:
 			return fmt.Sprintf(
 				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
-				h.FlowType, c2t_idcmd.CommandID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		case Notification:
 			return fmt.Sprintf(
 				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
-				h.FlowType, c2t_idnoti.NotiID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
+				h.FlowType, %[1]s_idnoti.NotiID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		}
 	}
 
@@ -1015,5 +1019,112 @@ func buildWasmConn(prefix string) (*bytes.Buffer, error) {
 		js.Global().Get("console").Call("error", fmt.Sprintf(format, v...))
 	}
 		`, prefix)
+	return &buf, nil
+}
+
+func buildWSGorilla(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_wsgorilla
+
+		import (
+			"context"
+			"fmt"
+			"net"
+			"time"
+		
+			"github.com/gorilla/websocket"
+		)
+
+		`, prefix)
+
+	fmt.Fprintf(&buf, `
+	func SendControl(
+		wsConn *websocket.Conn, mt int, PacketWriteTimeOut time.Duration) error {
+	
+		return wsConn.WriteControl(mt, []byte{}, time.Now().Add(PacketWriteTimeOut))
+	}
+	
+	func SendPacket(wsConn *websocket.Conn, sendBuffer []byte) error {
+		return wsConn.WriteMessage(websocket.BinaryMessage, sendBuffer)
+	}
+	
+	func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), wsConn *websocket.Conn,
+		timeout time.Duration,
+		SendCh chan %[1]s_packet.Packet,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		handleSentPacketFn func(header %[1]s_packet.Header) error,
+	) error {
+	
+		defer SendRecvStop()
+		var err error
+	loop:
+		for {
+			select {
+			case <-sendRecvCtx.Done():
+				err = SendControl(wsConn, websocket.CloseMessage, timeout)
+				break loop
+			case pk := <-SendCh:
+				if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+					break loop
+				}
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn)
+				if err != nil {
+					break loop
+				}
+				if err = SendPacket(wsConn, sendBuffer); err != nil {
+					break loop
+				}
+				if err = handleSentPacketFn(pk.Header); err != nil {
+					break loop
+				}
+			}
+		}
+		return err
+	}
+	
+	func RecvLoop(sendRecvCtx context.Context, SendRecvStop func(), wsConn *websocket.Conn,
+		timeout time.Duration,
+		HandleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error) error {
+	
+		defer SendRecvStop()
+		var err error
+	loop:
+		for {
+			select {
+			case <-sendRecvCtx.Done():
+				break loop
+			default:
+				if err = wsConn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
+					break loop
+				}
+				if header, body, lerr := RecvPacket(wsConn); lerr != nil {
+					if operr, ok := lerr.(*net.OpError); ok && operr.Timeout() {
+						continue
+					}
+					err = lerr
+					break loop
+				} else {
+					if err = HandleRecvPacketFn(header, body); err != nil {
+						break loop
+					}
+				}
+			}
+		}
+		return err
+	}
+	
+	func RecvPacket(wsConn *websocket.Conn) (%[1]s_packet.Header, []byte, error) {
+		mt, rdata, err := wsConn.ReadMessage()
+		if err != nil {
+			return %[1]s_packet.Header{}, nil, err
+		}
+		if mt != websocket.BinaryMessage {
+			return %[1]s_packet.Header{}, nil, fmt.Errorf("message not binary %%v", mt)
+		}
+		return %[1]s_packet.NewRecvPacketBufferByData(rdata).GetHeaderBody()
+	}
+	`, prefix)
 	return &buf, nil
 }
