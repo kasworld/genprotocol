@@ -1,0 +1,2 @@
+# genprotocol
+generate protocol code 
