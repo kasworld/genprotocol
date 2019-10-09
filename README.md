@@ -20,7 +20,9 @@ tower server - ground server
 ## 사용 법 
 위 와 같은 경우 
 
-genprotocol -ver=1.0 -prefix=c2t -basedir=. 
+genprotocol -ver=1.2 -prefix=c2t -basedir=. 
+
+genprotocol -ver=1.0 -prefix=t2g -basedir=. 
 
 과 같은 형태로 실행합니다. 
 
@@ -76,7 +78,7 @@ prefix_server : server ( 접속을 받아 주는 쪽) api 처리
 
 	생성하는 파일 
 	demuxreq2api_gen.go : request 를 api로 연결 
-	apitemplate_gen.go  : api code template 참고해서 "_gen"이 없는 파일을 만들것 
+	apitemplate_gen.go  : api code template, 참고해서 "_gen"이 없는 파일을 만들것 
 
 prefix_msgp : messagepack marshal/unmarshal code (https://github.com/tinylib/msgp)
 
