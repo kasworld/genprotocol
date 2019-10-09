@@ -68,15 +68,15 @@ prefix_gendata : genprotocol에서 읽어 들이는 파일들
 prefix_client : client (접속을 시도 하는 쪽)에서 사용 
 
 	생성하는 파일 
-	recvrspobjfnmap_gen.go   
-	recvnotiobjfnmap_gen.go
-	callsendrecv_gen.go
+	recvrspobjfnmap_gen.go   : 받은 response 처리 
+	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
+	callsendrecv_gen.go      
 
-prefix_server : server ( 접속을 받아 주는 쪽) 
+prefix_server : server ( 접속을 받아 주는 쪽) api 처리
 
 	생성하는 파일 
-	demuxreq2api_gen.go
-	apitemplate_gen.go
+	demuxreq2api_gen.go : request 를 api로 연결 
+	apitemplate_gen.go  : api code template 참고해서 "_gen"이 없는 파일을 만들것 
 
 prefix_msgp : messagepack marshal/unmarshal code (https://github.com/tinylib/msgp)
 
@@ -88,18 +88,18 @@ prefix_json : json marshal/unmarshal code
 	생성하는 파일 
 	serialize_gen.go
 
-prefix_error : protocol error 
+prefix_error : protocol error code list
 
 	생성하는 파일 
 	error_gen.go 
 
 
-prefix_idcmd : protocol command (request,response) 
+prefix_idcmd : protocol command (request,response) list 
 
 	생성하는 파일 
 	command_gen.go
 
-prefix_idnoti : protocol notification 
+prefix_idnoti : protocol notification list 
 
 	생성하는 파일 
 	noti_gen.go
