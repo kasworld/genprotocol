@@ -122,3 +122,12 @@ prefix_version : protocol version 정보
 	생성하는 파일 
 	version_gen.go
 
+prefix_wasmconn : wasm client 용 connection (websocket)
+
+	생성하는 파일 
+	wasmconn_gen.go
+
+prefix_wsgorilla : go client 용 websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
+
+	생성하는 파일 
+	wsgorilla_gen.go
