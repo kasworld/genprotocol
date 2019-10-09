@@ -10,3 +10,12 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+*.wasm
+core
+*_gen.go 
+*_gen_test.go
+.*~
+*~
+*.map
+bin/*
