@@ -107,9 +107,6 @@ func main() {
 		"_packet",
 		"_version",
 	}
-	for _, v := range dirToMake {
-		os.MkdirAll(path.Join(*basedir, *prefix+v), os.ModePerm)
-	}
 
 	cmddatafile := path.Join(*basedir, *prefix+"_gendata", "command.data")
 	cmddata, err := loadEnumWithComment(cmddatafile)
@@ -128,6 +125,10 @@ func main() {
 	if err != nil {
 		fmt.Printf("fail to load %v %v\n", errordatafile, err)
 		return
+	}
+
+	for _, v := range dirToMake {
+		os.MkdirAll(path.Join(*basedir, *prefix+v), os.ModePerm)
 	}
 
 	buf, err := buildVersion(*prefix, *ver)
@@ -501,7 +502,7 @@ func buildPacket(prefix string) (*bytes.Buffer, error) {
 	type FlowType byte // packet flow type
 	
 	const (
-		invalid FlowType = iota // make not initalized packet error
+		invalid FlowType = iota // make uninitalized packet error
 		Request // Request for request packet (response packet expected)
 		Response // Response is reply of request packet
 		Notification // Notification is just send and forget packet
@@ -663,7 +664,6 @@ func buildPacket(prefix string) (*bytes.Buffer, error) {
 	}
 
 	// GetBodyBytes return body ready to unmarshal.
-	// if body is bodyType, decompress and return
 	func (pb *RecvPacketBuffer) GetBodyBytes() ([]byte, error) {
 		if !pb.IsPacketComplete() {
 			return nil, fmt.Errorf("packet not complete")
