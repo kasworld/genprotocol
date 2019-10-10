@@ -3,7 +3,7 @@
 ( goguelike 프로젝트를 하면서 만들어진 )
 네트웍 등에서 사용하기 위한 protocol 을 작성하는데 필요한 반복적 이고 기계적인 코드들을 자동으로 생성 해주는 프로그램 입니다. 
 
-https://github.com/kasworld/wasmwebsocket 을 보면 예제를 볼 수 있습니다. 
+example folder 에서 예제를 볼 수 있습니다. 
 
 작성 이유는 하나의 프로젝트에서 여러종의 protocol 을 사용할 일이 생겨서 
 반복된 코드를 작성하다 보니 만들게 되었습니다. 
@@ -58,6 +58,9 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_client/callsendrecv_gen.go
 	goimports -w example/c2s_server/demuxreq2api_gen.go
 	goimports -w example/c2s_server/apitemplate_gen.go
+	goimports -w example/c2s_wasmconn/wasmconn_gen.go
+	goimports -w example/c2s_loopwsgorilla/loopwsgorilla_gen.go
+	goimports -w example/c2s_looptcp/looptcp_gen.go
 
 
 prefix_gendata : genprotocol에서 읽어 들이는 파일들 
@@ -128,7 +131,12 @@ prefix_wasmconn : wasm client 용 connection (websocket)
 	생성하는 파일 
 	wasmconn_gen.go
 
-prefix_wsgorilla : go client 용 websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
+prefix_loopwsgorilla : go server/client용  websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
 
 	생성하는 파일 
-	wsgorilla_gen.go
+	loopwsgorilla_gen.go
+
+prefix_looptcp : go server/client용 TCP Send/Recv loop
+
+	생성하는 파일 
+	looptcp_gen.go
