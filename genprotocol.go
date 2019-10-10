@@ -41,7 +41,7 @@ func loadEnumWithComment(filename string) ([][]string, error) {
 	for {
 		line, err := rd.ReadString('\n')
 		line = strings.TrimSpace(line)
-		if len(line) != 0 {
+		if len(line) != 0 && line[0] != '#' {
 			s2 := strings.SplitN(line, " ", 2)
 			if len(s2) == 1 {
 				s2 = append(s2, "")

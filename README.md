@@ -62,7 +62,8 @@ goimports 등으로 정리 해주어야 합니다.
 
 prefix_gendata : genprotocol에서 읽어 들이는 파일들 
 
-	각 라인의 첫 단어가 enum 이고 space 로 분리된 뒷 부분은 comment 가 된다. 
+	각 라인의 첫 단어가 enum 이고 space 로 분리된 뒷 부분은 생성된 코드의 comment가 된다. 
+	# 으로 시작하는 라인은 무시(comment취급)
 	command.data : request/response packet 용 command id 목록 
 	noti.data    : notification packet 용 noti id 목록 
 	error.data   : error code 목록 
