@@ -108,6 +108,7 @@ func main() {
 		"_version",
 		"_wasmconn",
 		"_wsgorilla",
+		"_tcploop",
 	}
 
 	cmddatafile := path.Join(*basedir, *prefix+"_gendata", "command.data")
@@ -177,6 +178,9 @@ func main() {
 
 	buf, err = buildWSGorilla(*prefix)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_wsgorilla", "wsgorilla_gen.go"))
+
+	buf, err = buildTCPLoop(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_tcploop", "tcploop_gen.go"))
 }
 
 func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
@@ -638,13 +642,13 @@ func buildPacket(prefix string) (*bytes.Buffer, error) {
 	// 	return make([]byte, MaxPacketLen)
 	// }
 
-	// func NewRecvPacketBuffer() *RecvPacketBuffer {
-	// 	pb := &RecvPacketBuffer{
-	// 		RecvBuffer: make([]byte, MaxPacketLen),
-	// 		RecvLen:    0,
-	// 	}
-	// 	return pb
-	// }
+	func NewRecvPacketBuffer() *RecvPacketBuffer {
+		pb := &RecvPacketBuffer{
+			RecvBuffer: make([]byte, MaxPacketLen),
+			RecvLen:    0,
+		}
+		return pb
+	}
 
 	// RecvPacketBuffer used for packet receive
 	type RecvPacketBuffer struct {
@@ -1124,6 +1128,109 @@ func buildWSGorilla(prefix string) (*bytes.Buffer, error) {
 			return %[1]s_packet.Header{}, nil, fmt.Errorf("message not binary %%v", mt)
 		}
 		return %[1]s_packet.NewRecvPacketBufferByData(rdata).GetHeaderBody()
+	}
+	`, prefix)
+	return &buf, nil
+}
+
+func buildTCPLoop(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_tcploop
+
+		import (
+			"context"
+			"net"
+			"time"
+		)
+
+		`, prefix)
+
+	fmt.Fprintf(&buf, `
+	func SendPacket(conn *net.TCPConn, buf []byte) error {
+		toWrite := len(buf)
+		for l := 0; l < toWrite; {
+			n, err := conn.Write(buf[l:toWrite])
+			if err != nil {
+				return err
+			}
+			l += n
+		}
+		return nil
+	}
+	
+	func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCPConn,
+		timeOut time.Duration,
+		SendCh chan %[1]s_packet.Packet,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		handleSentPacketFn func(header %[1]s_packet.Header) error,
+	) error {
+	
+		defer SendRecvStop()
+		var err error
+	loop:
+		for {
+			select {
+			case <-sendRecvCtx.Done():
+				break loop
+			case pk := <-SendCh:
+				if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
+					break loop
+				}
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn)
+				if err != nil {
+					break loop
+				}
+				if err = SendPacket(tcpConn, sendBuffer); err != nil {
+					break loop
+				}
+				if err = handleSentPacketFn(pk.Header); err != nil {
+					break loop
+				}
+			}
+		}
+		return err
+	}
+	
+	func RecvLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCPConn,
+		timeOut time.Duration,
+		HandleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
+	) error {
+	
+		defer SendRecvStop()
+	
+		pb := %[1]s_packet.NewRecvPacketBuffer()
+		var err error
+	loop:
+		for {
+			select {
+			case <-sendRecvCtx.Done():
+				return nil
+	
+			default:
+				if pb.IsPacketComplete() {
+					header, rbody, lerr := pb.GetHeaderBody()
+					if lerr != nil {
+						err = lerr
+						break loop
+					}
+					if err = HandleRecvPacketFn(header, rbody); err != nil {
+						break loop
+					}
+					pb = %[1]s_packet.NewRecvPacketBuffer()
+					if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
+						break loop
+					}
+				} else {
+					err := pb.Read(tcpConn)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return err
 	}
 	`, prefix)
 	return &buf, nil
