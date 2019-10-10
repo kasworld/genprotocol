@@ -107,8 +107,8 @@ func main() {
 		"_packet",
 		"_version",
 		"_wasmconn",
-		"_wsgorilla",
-		"_tcploop",
+		"_loopwsgorilla",
+		"_looptcp",
 	}
 
 	cmddatafile := path.Join(*basedir, *prefix+"_gendata", "command.data")
@@ -176,11 +176,11 @@ func main() {
 	buf, err = buildWasmConn(*prefix)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_wasmconn", "wasmconn_gen.go"))
 
-	buf, err = buildWSGorilla(*prefix)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_wsgorilla", "wsgorilla_gen.go"))
+	buf, err = buildLoopWSGorilla(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_loopwsgorilla", "loopwsgorilla_gen.go"))
 
-	buf, err = buildTCPLoop(*prefix)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_tcploop", "tcploop_gen.go"))
+	buf, err = buildLoopTCP(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_looptcp", "looptcp_gen.go"))
 }
 
 func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
@@ -1026,11 +1026,11 @@ func buildWasmConn(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildWSGorilla(prefix string) (*bytes.Buffer, error) {
+func buildLoopWSGorilla(prefix string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_wsgorilla
+		package %[1]s_loopwsgorilla
 
 		import (
 			"context"
@@ -1133,11 +1133,11 @@ func buildWSGorilla(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildTCPLoop(prefix string) (*bytes.Buffer, error) {
+func buildLoopTCP(prefix string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_tcploop
+		package %[1]s_looptcp
 
 		import (
 			"context"

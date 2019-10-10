@@ -23,9 +23,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
+	"github.com/kasworld/genprotocol/example/c2s_loopwsgorilla"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
-	"github.com/kasworld/genprotocol/example/c2s_wsgorilla"
 )
 
 // service const
@@ -108,14 +108,14 @@ func (c2sc *Connection) Connect(mainctx context.Context) {
 	c2sc.sendRecvStop = sendRecvCancel
 
 	go func() {
-		err := c2s_wsgorilla.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
+		err := c2s_loopwsgorilla.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
 			PacketReadTimeoutSec, c2sc.HandleRecvPacket)
 		if err != nil {
 			fmt.Printf("end RecvLoop %v\n", err)
 		}
 	}()
 	go func() {
-		err := c2s_wsgorilla.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
+		err := c2s_loopwsgorilla.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
 			PacketWriteTimeoutSec, c2sc.sendCh,
 			c2s_json.MarshalBodyFn, c2sc.handleSentPacket)
 		if err != nil {
