@@ -17,55 +17,53 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
+	"net"
+	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_server"
 )
 
 func main() {
 	port := flag.String("port", ":8080", "Serve port")
-	folder := flag.String("dir", ".", "Serve Dir")
 	flag.Parse()
-	fmt.Printf("server dir=%v port=%v , http://localhost%v/ \n",
-		*folder, *port, *port)
 
 	ctx := context.Background()
 
-	webMux := http.NewServeMux()
-	webMux.Handle("/",
-		http.FileServer(http.Dir(*folder)),
-	)
-	webMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWebSocketClient(ctx, w, r)
-	})
-
-	if err := http.ListenAndServe(*port, webMux); err != nil {
-		fmt.Println(err.Error())
-	}
-}
-
-func CheckOrigin(r *http.Request) bool {
-	return true
-}
-
-func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-
-	upgrader := websocket.Upgrader{
-		CheckOrigin: CheckOrigin,
-	}
-
-	wsConn, err := upgrader.Upgrade(w, r, nil)
+	tcpaddr, err := net.ResolveTCPAddr("tcp", *port)
 	if err != nil {
-		fmt.Printf("upgrade %v\n", err)
+		fmt.Printf("error %v\n", err)
 		return
 	}
+	listener, err := net.ListenTCP("tcp", tcpaddr)
+	if err != nil {
+		fmt.Printf("error %v\n", err)
+		return
+	}
+	defer listener.Close()
 
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
+			listener.SetDeadline(time.Now().Add(time.Duration(1 * time.Second)))
+			conn, err := listener.AcceptTCP()
+			if err != nil {
+				operr, ok := err.(*net.OpError)
+				if ok && operr.Timeout() {
+					continue
+				}
+				fmt.Printf("error %#v\n", err)
+			} else {
+				go serveTCPClient(ctx, conn)
+			}
+		}
+	}
+}
+
+func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
 	c2sc := c2s_server.NewServeClientConn()
-	c2sc.StartServeWS(ctx, wsConn)
-
-	// connected user play
-
-	// end play
-	wsConn.Close()
+	c2sc.StartServeTCP(ctx, conn)
+	conn.Close()
 }

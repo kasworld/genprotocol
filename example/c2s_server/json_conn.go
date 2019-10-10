@@ -3,12 +3,14 @@ package c2s_server
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_error"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
+	"github.com/kasworld/genprotocol/example/c2s_tcploop"
 	"github.com/kasworld/genprotocol/example/c2s_wsgorilla"
 )
 
@@ -21,52 +23,70 @@ const (
 )
 
 func (c2sc *ServeClientConn) String() string {
-	return fmt.Sprintf(
-		"ServeClientConn[%v SendCh:%v]",
-		c2sc.RemoteAddr,
-		len(c2sc.sendCh),
-	)
+	return fmt.Sprintf("ServeClientConn[SendCh:%v]", len(c2sc.sendCh))
 }
 
 type ServeClientConn struct {
-	RemoteAddr   string
 	sendCh       chan c2s_packet.Packet
 	sendRecvStop func()
 }
 
-func NewServeClientConn(remoteAddr string) *ServeClientConn {
+func NewServeClientConn() *ServeClientConn {
 	c2sc := &ServeClientConn{
-		RemoteAddr: remoteAddr,
-		sendCh:     make(chan c2s_packet.Packet, SendBufferSize),
+		sendCh: make(chan c2s_packet.Packet, SendBufferSize),
 	}
-
 	c2sc.sendRecvStop = func() {
 		fmt.Printf("Too early sendRecvStop call %v\n", c2sc)
 	}
 	return c2sc
 }
 
-func (c2sc *ServeClientConn) StartServeClientConn(mainctx context.Context, wsConn *websocket.Conn) {
-
+func (c2sc *ServeClientConn) StartServeWS(mainctx context.Context, conn *websocket.Conn) {
 	sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
 	c2sc.sendRecvStop = sendRecvCancel
-
 	go func() {
-		err := c2s_wsgorilla.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, wsConn,
+		err := c2s_wsgorilla.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
 			PacketReadTimeoutSec, c2sc.HandleRecvPacket)
 		if err != nil {
 			fmt.Printf("end RecvLoop %v\n", err)
 		}
 	}()
 	go func() {
-		err := c2s_wsgorilla.SendLoop(sendRecvCtx, c2sc.sendRecvStop, wsConn,
+		err := c2s_wsgorilla.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
 			PacketWriteTimeoutSec, c2sc.sendCh,
 			c2s_json.MarshalBodyFn, c2sc.handleSentPacket)
 		if err != nil {
 			fmt.Printf("end SendLoop %v\n", err)
 		}
 	}()
+loop:
+	for {
+		select {
+		case <-sendRecvCtx.Done():
+			break loop
 
+		}
+	}
+}
+
+func (c2sc *ServeClientConn) StartServeTCP(mainctx context.Context, conn *net.TCPConn) {
+	sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
+	c2sc.sendRecvStop = sendRecvCancel
+	go func() {
+		err := c2s_tcploop.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
+			PacketReadTimeoutSec, c2sc.HandleRecvPacket)
+		if err != nil {
+			fmt.Printf("end RecvLoop %v\n", err)
+		}
+	}()
+	go func() {
+		err := c2s_tcploop.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
+			PacketWriteTimeoutSec, c2sc.sendCh,
+			c2s_json.MarshalBodyFn, c2sc.handleSentPacket)
+		if err != nil {
+			fmt.Printf("end SendLoop %v\n", err)
+		}
+	}()
 loop:
 	for {
 		select {

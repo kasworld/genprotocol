@@ -17,15 +17,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/url"
+	"net"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
-	"github.com/kasworld/genprotocol/example/c2s_wsgorilla"
+	"github.com/kasworld/genprotocol/example/c2s_tcploop"
 )
 
 // service const
@@ -96,11 +95,14 @@ func NewConnection(remoteAddr string) *Connection {
 
 func (c2sc *Connection) Connect(mainctx context.Context) {
 
-	// connect
-	u := url.URL{Scheme: "ws", Host: c2sc.RemoteAddr, Path: "/ws"}
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	tcpaddr, err := net.ResolveTCPAddr("tcp", c2sc.RemoteAddr)
 	if err != nil {
-		fmt.Printf("dial: %v\n", err)
+		fmt.Printf("%v\n", err)
+		return
+	}
+	conn, err := net.DialTCP("tcp", nil, tcpaddr)
+	if err != nil {
+		fmt.Printf("%v\n", err)
 		return
 	}
 
@@ -108,14 +110,14 @@ func (c2sc *Connection) Connect(mainctx context.Context) {
 	c2sc.sendRecvStop = sendRecvCancel
 
 	go func() {
-		err := c2s_wsgorilla.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
+		err := c2s_tcploop.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
 			PacketReadTimeoutSec, c2sc.HandleRecvPacket)
 		if err != nil {
 			fmt.Printf("end RecvLoop %v\n", err)
 		}
 	}()
 	go func() {
-		err := c2s_wsgorilla.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
+		err := c2s_tcploop.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
 			PacketWriteTimeoutSec, c2sc.sendCh,
 			c2s_json.MarshalBodyFn, c2sc.handleSentPacket)
 		if err != nil {
