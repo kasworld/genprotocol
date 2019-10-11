@@ -1146,7 +1146,7 @@ func buildConnWSGorilla(prefix string) (*bytes.Buffer, error) {
 			time.Sleep(1 * time.Millisecond)
 		}
 	
-		return fmt.Errorf("Send channel full %v", tc)
+		return fmt.Errorf("Send channel full %%v", tc)
 	}
 	`, prefix)
 	return &buf, nil
