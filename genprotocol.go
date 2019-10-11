@@ -1065,7 +1065,7 @@ func buildConnWSGorilla(prefix string) (*bytes.Buffer, error) {
 		handleSentPacketFn func(header %[1]s_packet.Header) error,
 	) *Connection {
 		tc := &Connection{
-			sendCh:             make(chan %[1]s_packet.Packet, 2),
+			sendCh:             make(chan %[1]s_packet.Packet, 10),
 			readTimeoutSec:     readTimeoutSec,
 			writeTimeoutSec:    writeTimeoutSec,
 			marshalBodyFn:      marshalBodyFn,
