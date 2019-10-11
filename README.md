@@ -58,7 +58,8 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_client/callsendrecv_gen.go
 	goimports -w example/c2s_server/demuxreq2api_gen.go
 	goimports -w example/c2s_server/apitemplate_gen.go
-	goimports -w example/c2s_wasmconn/wasmconn_gen.go
+	goimports -w example/c2s_connwasm/connwasm_gen.go
+	goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
 	goimports -w example/c2s_loopwsgorilla/loopwsgorilla_gen.go
 	goimports -w example/c2s_looptcp/looptcp_gen.go
 
@@ -126,12 +127,17 @@ prefix_version : protocol version 정보
 	생성하는 파일 
 	version_gen.go
 
-prefix_wasmconn : wasm client 용 connection (websocket)
+prefix_connwasm : websocket wasm client 용 connection
 
 	생성하는 파일 
-	wasmconn_gen.go
+	connwasm_gen.go
 
-prefix_loopwsgorilla : go server/client용  websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
+prefix_connwsgorilla : gorilla websocket  client 용 connection 
+
+	생성하는 파일 
+	connwsgorilla_gen.go
+
+prefix_loopwsgorilla : go server/client용 gorilla websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
 
 	생성하는 파일 
 	loopwsgorilla_gen.go

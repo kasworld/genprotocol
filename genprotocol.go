@@ -106,7 +106,8 @@ func main() {
 		"_obj",
 		"_packet",
 		"_version",
-		"_wasmconn",
+		"_connwasm",
+		"_connwsgorilla",
 		"_loopwsgorilla",
 		"_looptcp",
 	}
@@ -173,8 +174,11 @@ func main() {
 	buf, err = buildAPITemplate(*prefix, cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_server", "apitemplate_gen.go"))
 
-	buf, err = buildWasmConn(*prefix)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_wasmconn", "wasmconn_gen.go"))
+	buf, err = buildConnWasm(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_connwasm", "connwasm_gen.go"))
+
+	buf, err = buildConnWSGorilla(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_connwsgorilla", "connwsgorilla_gen.go"))
 
 	buf, err = buildLoopWSGorilla(*prefix)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_loopwsgorilla", "loopwsgorilla_gen.go"))
@@ -850,11 +854,11 @@ func buildAPITemplate(prefix string, cmddata, notidata [][]string) (*bytes.Buffe
 	return &buf, nil
 }
 
-func buildWasmConn(prefix string) (*bytes.Buffer, error) {
+func buildConnWasm(prefix string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_wasmconn
+		package %[1]s_connwasm
 
 		import (
 			"context"
@@ -1023,6 +1027,128 @@ func buildWasmConn(prefix string) (*bytes.Buffer, error) {
 		js.Global().Get("console").Call("error", fmt.Sprintf(format, v...))
 	}
 		`, prefix)
+	return &buf, nil
+}
+
+func buildConnWSGorilla(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s_connwsgorilla
+
+	import (
+		"context"
+		"fmt"
+		"net/url"
+		"sync"
+		"time"
+	)
+	`, prefix)
+
+	fmt.Fprintf(&buf, `
+	type Connection struct {
+		wsConn       *websocket.Conn
+		sendRecvStop func()
+		sendCh       chan %[1]s_packet.Packet
+	
+		readTimeoutSec     time.Duration
+		writeTimeoutSec    time.Duration
+		marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
+		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error
+		handleSentPacketFn func(header %[1]s_packet.Header) error
+	}
+	
+	func New(
+		readTimeoutSec, writeTimeoutSec time.Duration,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
+		handleSentPacketFn func(header %[1]s_packet.Header) error,
+	) *Connection {
+		tc := &Connection{
+			sendCh:             make(chan %[1]s_packet.Packet, 2),
+			readTimeoutSec:     readTimeoutSec,
+			writeTimeoutSec:    writeTimeoutSec,
+			marshalBodyFn:      marshalBodyFn,
+			handleRecvPacketFn: handleRecvPacketFn,
+			handleSentPacketFn: handleSentPacketFn,
+		}
+	
+		tc.sendRecvStop = func() {
+			panic("Too early sendRecvStop call")
+		}
+		return tc
+	}
+	
+	func (tc *Connection) ConnectTo(connAddr string) error {
+		u := url.URL{Scheme: "ws", Host: connAddr, Path: "/ws"}
+		var err error
+		tc.wsConn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	
+	func (tc *Connection) Cleanup() {
+		tc.sendRecvStop()
+		if tc.wsConn != nil {
+			tc.wsConn.Close()
+		}
+	}
+	
+	func (tc *Connection) Run(aictx context.Context) error {
+		connCtx, ctxCancel := context.WithCancel(aictx)
+		tc.sendRecvStop = ctxCancel
+		var rtnerr error
+		var sendRecvWaitGroup sync.WaitGroup
+		sendRecvWaitGroup.Add(2)
+		go func() {
+			defer sendRecvWaitGroup.Done()
+			err := %[1]s_loopwsgorilla.RecvLoop(
+				connCtx,
+				tc.sendRecvStop,
+				tc.wsConn,
+				tc.readTimeoutSec,
+				tc.handleRecvPacketFn,
+			)
+			if err != nil {
+				rtnerr = err
+			}
+		}()
+		go func() {
+			defer sendRecvWaitGroup.Done()
+			err := %[1]s_loopwsgorilla.SendLoop(
+				connCtx,
+				tc.sendRecvStop,
+				tc.wsConn,
+				tc.writeTimeoutSec,
+				tc.sendCh,
+				tc.marshalBodyFn,
+				tc.handleSentPacketFn,
+			)
+			if err != nil {
+				rtnerr = err
+			}
+		}()
+		sendRecvWaitGroup.Wait()
+		return rtnerr
+	}
+	
+	func (tc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
+		trycount := 10
+		for trycount > 0 {
+			select {
+			case tc.sendCh <- pk:
+				return nil
+			default:
+				trycount--
+			}
+			time.Sleep(1 * time.Millisecond)
+		}
+	
+		return fmt.Errorf("Send channel full %v", tc)
+	}
+	`, prefix)
 	return &buf, nil
 }
 
