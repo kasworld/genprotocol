@@ -62,6 +62,10 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
 	goimports -w example/c2s_loopwsgorilla/loopwsgorilla_gen.go
 	goimports -w example/c2s_looptcp/looptcp_gen.go
+	goimports -w example/c2s_statnoti/statnoti_gen.go
+	goimports -w example/c2s_statcallapi/statcallapi_gen.go
+	goimports -w example/c2s_statserveapi/statserveapi_gen.go
+	goimports -w example/c2s_statapierror/statapierror_gen.go
 
 
 prefix_gendata : genprotocol에서 읽어 들이는 파일들 
@@ -146,3 +150,23 @@ prefix_looptcp : go server/client용 TCP Send/Recv loop
 
 	생성하는 파일 
 	looptcp_gen.go
+
+prefix_statnoti : notification protocol 통계 
+
+	생성하는 파일 
+	statnoti_gen.go	
+
+prefix_statcallapi : client api call 통계 
+
+	생성하는 파일 
+	statcallapi_gen.go	
+
+prefix_statserveapi : server api 처리 통계 
+
+	생성하는 파일 
+	statserveapi_gen.go	
+
+prefix_statapierror : api 결과 error 통계 
+
+	생성하는 파일 
+	statapierror_gen.go	
