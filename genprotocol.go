@@ -106,6 +106,7 @@ func main() {
 		"_obj",
 		"_packet",
 		"_version",
+		"_conntcp",
 		"_connwasm",
 		"_connwsgorilla",
 		"_loopwsgorilla",
@@ -177,6 +178,9 @@ func main() {
 
 	buf, err = buildAPITemplate(*prefix, cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_server", "apitemplate_gen.go"))
+
+	buf, err = buildConnTCP(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_conntcp", "conntcp_gen.go"))
 
 	buf, err = buildConnWasm(*prefix)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_connwasm", "connwasm_gen.go"))
@@ -867,6 +871,125 @@ func buildAPITemplate(prefix string, cmddata, notidata [][]string) (*bytes.Buffe
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
+	return &buf, nil
+}
+
+func buildConnTCP(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_conntcp
+		import (
+			"context"
+			"fmt"
+			"net"
+			"sync"
+			"time"
+		)
+		`, prefix)
+	fmt.Fprintf(&buf, `
+	type Connection struct {
+		conn         *net.TCPConn
+		sendCh       chan %[1]s_packet.Packet
+		sendRecvStop func()
+	
+		readTimeoutSec     time.Duration
+		writeTimeoutSec    time.Duration
+		marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
+		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error
+		handleSentPacketFn func(header %[1]s_packet.Header) error
+	}
+	
+	func New(
+		readTimeoutSec, writeTimeoutSec time.Duration,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
+		handleSentPacketFn func(header %[1]s_packet.Header) error,
+	) *Connection {
+		tc := &Connection{
+			sendCh:             make(chan %[1]s_packet.Packet, 10),
+			readTimeoutSec:     readTimeoutSec,
+			writeTimeoutSec:    writeTimeoutSec,
+			marshalBodyFn:      marshalBodyFn,
+			handleRecvPacketFn: handleRecvPacketFn,
+			handleSentPacketFn: handleSentPacketFn,
+		}
+	
+		tc.sendRecvStop = func() {
+			fmt.Printf("Too early sendRecvStop call %%v\n", tc)
+		}
+		return tc
+	}
+	
+	func (tc *Connection) ConnectTo(remoteAddr string) error {
+		tcpaddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
+		if err != nil {
+			return err
+		}
+		tc.conn, err = net.DialTCP("tcp", nil, tcpaddr)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	
+	func (tc *Connection) Cleanup() {
+		tc.sendRecvStop()
+		if tc.conn != nil {
+			tc.conn.Close()
+		}
+	}
+	
+	func (tc *Connection) Run(mainctx context.Context) error {
+		sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
+		tc.sendRecvStop = sendRecvCancel
+		var rtnerr error
+		var sendRecvWaitGroup sync.WaitGroup
+		sendRecvWaitGroup.Add(2)
+		go func() {
+			defer sendRecvWaitGroup.Done()
+			err := %[1]s_looptcp.RecvLoop(
+				sendRecvCtx,
+				tc.sendRecvStop,
+				tc.conn,
+				tc.readTimeoutSec,
+				tc.handleRecvPacketFn)
+			if err != nil {
+				rtnerr = err
+			}
+		}()
+		go func() {
+			defer sendRecvWaitGroup.Done()
+			err := %[1]s_looptcp.SendLoop(
+				sendRecvCtx,
+				tc.sendRecvStop,
+				tc.conn,
+				tc.writeTimeoutSec,
+				tc.sendCh,
+				tc.marshalBodyFn,
+				tc.handleSentPacketFn)
+			if err != nil {
+				rtnerr = err
+			}
+		}()
+		sendRecvWaitGroup.Wait()
+		return rtnerr
+	}
+	
+	func (tc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
+		trycount := 10
+		for trycount > 0 {
+			select {
+			case tc.sendCh <- pk:
+				return nil
+			default:
+				trycount--
+			}
+			time.Sleep(1 * time.Millisecond)
+		}
+		return fmt.Errorf("Send channel full %%v", tc)
+	}
+	`, prefix)
 	return &buf, nil
 }
 

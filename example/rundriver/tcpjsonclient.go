@@ -17,12 +17,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"time"
 
+	"github.com/kasworld/genprotocol/example/c2s_conntcp"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
-	"github.com/kasworld/genprotocol/example/c2s_looptcp"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
 )
@@ -41,127 +40,53 @@ func main() {
 	flag.Parse()
 	fmt.Printf("addr %v \n", *addr)
 
-	ctx := context.Background()
-	c2sc := NewConnection(*addr)
-
-	c2sc.enqueueSendPacket(c2sc.makePacket())
-	c2sc.enqueueSendPacket(c2sc.makePacket())
-	c2sc.Connect(ctx)
-}
-
-///////////////////
-
-func (c2sc *Connection) String() string {
-	return fmt.Sprintf(
-		"Connection[%v SendCh:%v]",
-		c2sc.RemoteAddr,
-		len(c2sc.sendCh),
+	app := new(App)
+	app.c2sc = c2s_conntcp.New(
+		PacketReadTimeoutSec, PacketWriteTimeoutSec,
+		c2s_json.MarshalBodyFn,
+		app.HandleRecvPacket,
+		app.handleSentPacket,
 	)
+	if err := app.c2sc.ConnectTo(*addr); err != nil {
+		fmt.Printf("%v\n", err)
+		return
+	}
+	app.c2sc.EnqueueSendPacket(app.makePacket())
+	app.c2sc.EnqueueSendPacket(app.makePacket())
+	ctx := context.Background()
+	app.c2sc.Run(ctx)
 }
 
-type Connection struct {
-	RemoteAddr   string
-	sendCh       chan c2s_packet.Packet
-	sendRecvStop func()
-	pid          uint32
+type App struct {
+	pid  uint32
+	c2sc *c2s_conntcp.Connection
 }
 
-func (c2sc *Connection) makePacket() c2s_packet.Packet {
+func (app *App) handleSentPacket(header c2s_packet.Header) error {
+	return nil
+}
+
+func (app *App) HandleRecvPacket(header c2s_packet.Header, body []byte) error {
+	robj, err := c2s_json.UnmarshalPacket(header, body)
+	_ = robj
+	// fmt.Println(header, robj, err)
+	if err == nil {
+		app.c2sc.EnqueueSendPacket(app.makePacket())
+	}
+	return err
+}
+
+func (app *App) makePacket() c2s_packet.Packet {
 	body := c2s_obj.ReqHeartbeat_data{}
 	hd := c2s_packet.Header{
 		Cmd:      uint16(c2s_idcmd.Heartbeat),
-		ID:       c2sc.pid,
+		ID:       app.pid,
 		FlowType: c2s_packet.Request,
 	}
-	c2sc.pid++
+	app.pid++
 
 	return c2s_packet.Packet{
 		Header: hd,
 		Body:   body,
 	}
-}
-
-func NewConnection(remoteAddr string) *Connection {
-	c2sc := &Connection{
-		RemoteAddr: remoteAddr,
-		sendCh:     make(chan c2s_packet.Packet, SendBufferSize),
-	}
-
-	c2sc.sendRecvStop = func() {
-		fmt.Printf("Too early sendRecvStop call %v\n", c2sc)
-	}
-	return c2sc
-}
-
-func (c2sc *Connection) Connect(mainctx context.Context) {
-
-	tcpaddr, err := net.ResolveTCPAddr("tcp", c2sc.RemoteAddr)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
-	}
-	conn, err := net.DialTCP("tcp", nil, tcpaddr)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
-	}
-
-	sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
-	c2sc.sendRecvStop = sendRecvCancel
-
-	go func() {
-		err := c2s_looptcp.RecvLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
-			PacketReadTimeoutSec, c2sc.HandleRecvPacket)
-		if err != nil {
-			fmt.Printf("end RecvLoop %v\n", err)
-		}
-	}()
-	go func() {
-		err := c2s_looptcp.SendLoop(sendRecvCtx, c2sc.sendRecvStop, conn,
-			PacketWriteTimeoutSec, c2sc.sendCh,
-			c2s_json.MarshalBodyFn, c2sc.handleSentPacket)
-		if err != nil {
-			fmt.Printf("end SendLoop %v\n", err)
-		}
-	}()
-
-loop:
-	for {
-		select {
-		case <-sendRecvCtx.Done():
-			break loop
-
-		}
-	}
-}
-
-func (c2sc *Connection) handleSentPacket(header c2s_packet.Header) error {
-	return nil
-}
-
-func (c2sc *Connection) HandleRecvPacket(header c2s_packet.Header, body []byte) error {
-	robj, err := c2s_json.UnmarshalPacket(header, body)
-	_ = robj
-	// fmt.Println(header, robj, err)
-	if err == nil {
-		c2sc.enqueueSendPacket(c2sc.makePacket())
-	}
-	return err
-}
-
-func (c2sc *Connection) enqueueSendPacket(pk c2s_packet.Packet) error {
-	trycount := 10
-	for trycount > 0 {
-		select {
-		case c2sc.sendCh <- pk:
-			return nil
-		default:
-			trycount--
-		}
-		fmt.Printf("Send delayed, %s send channel busy %v, retry %v\n",
-			c2sc, len(c2sc.sendCh), 10-trycount)
-		time.Sleep(1 * time.Millisecond)
-	}
-
-	return fmt.Errorf("Send channel full %v", c2sc)
 }

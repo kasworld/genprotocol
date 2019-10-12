@@ -13,6 +13,7 @@ goimports -w example/c2s_client/recvnotiobjfnmap_gen.go
 goimports -w example/c2s_client/callsendrecv_gen.go
 goimports -w example/c2s_server/demuxreq2api_gen.go
 goimports -w example/c2s_server/apitemplate_gen.go
+goimports -w example/c2s_conntcp/conntcp_gen.go
 goimports -w example/c2s_connwasm/connwasm_gen.go
 goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
 goimports -w example/c2s_loopwsgorilla/loopwsgorilla_gen.go
