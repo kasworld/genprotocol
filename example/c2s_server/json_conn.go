@@ -8,11 +8,14 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_error"
+	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_looptcp"
 	"github.com/kasworld/genprotocol/example/c2s_loopwsgorilla"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
-	"github.com/kasworld/goguelike2/protocol/c2s_packet"
+	"github.com/kasworld/genprotocol/example/c2s_statapierror"
+	"github.com/kasworld/genprotocol/example/c2s_statnoti"
+	"github.com/kasworld/genprotocol/example/c2s_statserveapi"
 )
 
 // service const
@@ -30,16 +33,34 @@ func (c2sc *ServeClientConn) String() string {
 type ServeClientConn struct {
 	sendCh       chan c2s_packet.Packet
 	sendRecvStop func()
+	tid2StatObj  *c2s_statserveapi.PacketID2StatObj
+	protocolStat *c2s_statserveapi.StatServeAPI
+	notiStat     *c2s_statnoti.StatNotification
+	errorStat    *c2s_statapierror.StatAPIError
 }
 
 func NewServeClientConn() *ServeClientConn {
 	c2sc := &ServeClientConn{
-		sendCh: make(chan c2s_packet.Packet, SendBufferSize),
+		sendCh:       make(chan c2s_packet.Packet, SendBufferSize),
+		tid2StatObj:  c2s_statserveapi.NewPacketID2StatObj(),
+		protocolStat: c2s_statserveapi.New(),
+		notiStat:     c2s_statnoti.New(),
+		errorStat:    c2s_statapierror.New(),
 	}
 	c2sc.sendRecvStop = func() {
 		fmt.Printf("Too early sendRecvStop call %v\n", c2sc)
 	}
 	return c2sc
+}
+
+func (c2sc *ServeClientConn) GetProtocolStat() *c2s_statserveapi.StatServeAPI {
+	return c2sc.protocolStat
+}
+func (c2sc *ServeClientConn) GetNotiStat() *c2s_statnoti.StatNotification {
+	return c2sc.notiStat
+}
+func (c2sc *ServeClientConn) GetErrorStat() *c2s_statapierror.StatAPIError {
+	return c2sc.errorStat
 }
 
 func (c2sc *ServeClientConn) StartServeWS(mainctx context.Context, conn *websocket.Conn) {
@@ -99,20 +120,19 @@ loop:
 }
 
 func (c2sc *ServeClientConn) handleSentPacket(header c2s_packet.Header) error {
-	n := int(header.BodyLen()) + c2s_packet.HeaderLen
 	switch header.FlowType {
 	default:
-		panic("invalid packet type %s %v", c2sc, header)
+		panic(fmt.Sprintf("invalid packet type %s %v", c2sc, header))
 
 	case c2s_packet.Request:
-		panic("request packet not supported %s %v", c2sc, header)
+		panic(fmt.Sprintf("request packet not supported %s %v", c2sc, header))
 
 	case c2s_packet.Response:
 		statOjb := c2sc.tid2StatObj.Del(header.ID)
 		if statOjb != nil {
-			statOjb.AfterSendRsp(n, header.BodyType())
+			statOjb.AfterSendRsp(header)
 		} else {
-			panic("send StatObj not found %v", header)
+			panic(fmt.Sprintf("send StatObj not found %v", header))
 		}
 	case c2s_packet.Notification:
 		c2sc.GetNotiStat().Add(header)
@@ -131,7 +151,26 @@ func (c2sc *ServeClientConn) HandleRecvPacket(header c2s_packet.Header, rbody []
 	if int(header.Cmd) >= len(DemuxReq2APIFnMap) {
 		return fmt.Errorf("Invalid header command %v", header)
 	}
+
+	statObj, err := c2sc.GetProtocolStat().AfterRecvReqHeader(header)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		if err := c2sc.tid2StatObj.Add(header.ID, statObj); err != nil {
+			fmt.Printf("%v\n", err)
+			return err
+		}
+	}
+
+	sObj := c2sc.tid2StatObj.Get(header.ID)
+	if sObj == nil {
+		return fmt.Errorf("protocol stat obj nil %v, maybe pkid duplicate?", header.ID)
+	}
+	sObj.BeforeAPICall()
 	response, errcode, apierr := DemuxReq2APIFnMap[header.Cmd](c2sc, header, robj)
+	c2sc.GetErrorStat().Inc(c2s_idcmd.CommandID(header.Cmd), response.ErrorCode)
+	sObj.AfterAPICall()
+
 	if errcode != c2s_error.Disconnect && apierr == nil {
 		rhd := header
 		rhd.FlowType = c2s_packet.Response
