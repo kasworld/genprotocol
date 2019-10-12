@@ -1402,11 +1402,11 @@ func buildStatNoti(prefix string) (*bytes.Buffer, error) {
 		}
 		return ns
 	}
-	func (ns *StatNotification) Add(cmd uint16, n int, bodytype byte) {
-		if int(cmd) >= %[1]s_idnoti.NotiID_Count {
+	func (ns *StatNotification) Add(hd %[1]s_packet.Header) {
+		if int(hd.Cmd) >= %[1]s_idnoti.NotiID_Count {
 			return
 		}
-		ns[cmd].add(n, bodytype)
+		ns[hd.Cmd].add(hd)
 	}
 	func (ns *StatNotification) ToWeb(w http.ResponseWriter, r *http.Request) error {
 		tplIndex, err := template.New("index").Parse(%[2]c
@@ -1451,16 +1451,17 @@ func buildStatNoti(prefix string) (*bytes.Buffer, error) {
 		TotalByte int
 		MaxByte   int
 	}
-	func (ps *StatRow) add(n int, bodytype byte) {
+	func (ps *StatRow) add(hd %[1]s_packet.Header) {
 		ps.mutex.Lock()
 		ps.Count++
+		n := int(hd.BodyLen()) + %[1]s_packet.HeaderLen
 		ps.TotalByte += n
 		if n > ps.MaxByte {
 			ps.MaxByte = n
 		}
 		ps.mutex.Unlock()
 	}
-	func (ps *StatRow) Avg() float64 {
+		func (ps *StatRow) Avg() float64 {
 		return float64(ps.TotalByte) / float64(ps.Count)
 	}
 	`, prefix, '`')
@@ -1669,9 +1670,7 @@ func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
 		if int(header.Cmd) >= %[1]s_idcmd.CommandID_Count {
 			return nil, fmt.Errorf("CommandID out of range %%v %%v", header, %[1]s_idcmd.CommandID_Count)
 		}
-		return ps[header.Cmd].open(
-			int(header.BodyLen())+%[1]s_packet.HeaderLen,
-			header.BodyType()), nil
+		return ps[header.Cmd].open(header), nil
 	}
 	func (ws *StatServeAPI) ToWeb(w http.ResponseWriter, r *http.Request) error {
 		tplIndex, err := template.New("index").Parse(%[2]c
@@ -1705,8 +1704,8 @@ func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
 	func (sm *StatObj) AfterAPICall() {
 		sm.StatRef.apiEnd(time.Now().UTC().Sub(sm.APICallTime))
 	}
-	func (sm *StatObj) AfterSendRsp(n int, bodytype byte) {
-		sm.StatRef.afterSend(n, time.Now().UTC().Sub(sm.RecvTime), bodytype)
+	func (sm *StatObj) AfterSendRsp(hd %[1]s_packet.Header) {
+		sm.StatRef.afterSend(time.Now().UTC().Sub(sm.RecvTime), hd)
 	}
 	////////////////////////////////////////////////////////////////////////////////
 	type PacketID2StatObj struct {
@@ -1787,10 +1786,11 @@ func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
 		APIEndCount    int
 		APIDurSum      time.Duration
 	}
-	func (sr *StatRow) open(rxbyte int, bodytype byte) *StatObj {
+	func (sr *StatRow) open(hd %[1]s_packet.Header) *StatObj {
 		sr.mutex.Lock()
 		defer sr.mutex.Unlock()
 		sr.RecvCount++
+		rxbyte := int(hd.BodyLen()) + %[1]s_packet.HeaderLen
 		sr.RecvBytes += rxbyte
 		if sr.MaxRecvBytes < rxbyte {
 			sr.MaxRecvBytes = rxbyte
@@ -1801,7 +1801,7 @@ func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
 		}
 		return rtn
 	}
-	func (sr *StatRow) afterAuth() {
+		func (sr *StatRow) afterAuth() {
 		sr.mutex.Lock()
 		defer sr.mutex.Unlock()
 		sr.AuthCount++
@@ -1812,17 +1812,18 @@ func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
 		sr.APIEndCount++
 		sr.APIDurSum += diffDur
 	}
-	func (sr *StatRow) afterSend(txbyte int, diffDur time.Duration, bodytype byte) {
+	func (sr *StatRow) afterSend(diffDur time.Duration, hd %[1]s_packet.Header) {
 		sr.mutex.Lock()
 		defer sr.mutex.Unlock()
 		sr.SendCount++
+		txbyte := int(hd.BodyLen()) + %[1]s_packet.HeaderLen
 		sr.SendBytes += txbyte
 		if sr.MaxSendBytes < txbyte {
 			sr.MaxSendBytes = txbyte
 		}
 		sr.RecvSendDurSum += diffDur
 	}
-	////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////
 	func (sr *StatRow) RunCount() int {
 		return sr.AuthCount - sr.APIEndCount
 	}

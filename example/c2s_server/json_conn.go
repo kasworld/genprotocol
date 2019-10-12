@@ -12,6 +12,7 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_looptcp"
 	"github.com/kasworld/genprotocol/example/c2s_loopwsgorilla"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
+	"github.com/kasworld/goguelike2/protocol/c2s_packet"
 )
 
 // service const
@@ -98,6 +99,24 @@ loop:
 }
 
 func (c2sc *ServeClientConn) handleSentPacket(header c2s_packet.Header) error {
+	n := int(header.BodyLen()) + c2s_packet.HeaderLen
+	switch header.FlowType {
+	default:
+		panic("invalid packet type %s %v", c2sc, header)
+
+	case c2s_packet.Request:
+		panic("request packet not supported %s %v", c2sc, header)
+
+	case c2s_packet.Response:
+		statOjb := c2sc.tid2StatObj.Del(header.ID)
+		if statOjb != nil {
+			statOjb.AfterSendRsp(n, header.BodyType())
+		} else {
+			panic("send StatObj not found %v", header)
+		}
+	case c2s_packet.Notification:
+		c2sc.GetNotiStat().Add(header)
+	}
 	return nil
 }
 
