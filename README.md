@@ -83,13 +83,6 @@ prefix_gendata : genprotocol에서 읽어 들이는 파일들
 	error.data   : error code 목록 
 
 
-prefix_client : client (접속을 시도 하는 쪽)에서 사용 
-
-	생성하는 파일 
-	recvrspobjfnmap_gen.go   : 받은 response 처리 
-	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
-	callsendrecv_gen.go      
-
 prefix_obj : protocol struct 들 (packet body)
 
 	생성하는 파일 
@@ -101,6 +94,7 @@ prefix_server : server ( 접속을 받아 주는 쪽) api 처리
 	생성하는 파일 
 	demuxreq2api_gen.go : request 를 api로 연결 
 	apitemplate_gen.go  : api code template, 참고해서 "_gen"이 없는 파일을 만들것 
+
 
 prefix_msgp : messagepack marshal/unmarshal code (https://github.com/tinylib/msgp)
 
@@ -138,6 +132,16 @@ prefix_version : protocol version 정보
 	생성하는 파일 
 	version_gen.go
 
+prefix_loopwsgorilla : go server/client용 gorilla websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
+
+	생성하는 파일 
+	loopwsgorilla_gen.go
+
+prefix_looptcp : go server/client용 TCP Send/Recv loop
+
+	생성하는 파일 
+	looptcp_gen.go
+
 prefix_connwasm : websocket wasm client 용 connection
 
 	생성하는 파일 
@@ -153,15 +157,12 @@ prefix_conntcp : tcp client 용 connection
 	생성하는 파일 
 	conntcp_gen.go
 
-prefix_loopwsgorilla : go server/client용 gorilla websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
+prefix_client : client (접속을 시도 하는 쪽)에서 사용 
 
 	생성하는 파일 
-	loopwsgorilla_gen.go
-
-prefix_looptcp : go server/client용 TCP Send/Recv loop
-
-	생성하는 파일 
-	looptcp_gen.go
+	recvrspobjfnmap_gen.go   : 받은 response 처리 
+	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
+	callsendrecv_gen.go      
 
 prefix_statnoti : notification protocol 통계 
 
