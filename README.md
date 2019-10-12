@@ -95,22 +95,15 @@ prefix_server : server ( 접속을 받아 주는 쪽) api 처리
 	demuxreq2api_gen.go : request 를 api로 연결 
 	apitemplate_gen.go  : api code template, 참고해서 "_gen"이 없는 파일을 만들것 
 
-
-prefix_msgp : messagepack marshal/unmarshal code (https://github.com/tinylib/msgp)
-
-	생성하는 파일 
-	serialize_gen.go
- 
-prefix_json : json marshal/unmarshal code 
+prefix_version : protocol version 정보 
 
 	생성하는 파일 
-	serialize_gen.go
+	version_gen.go
 
 prefix_error : protocol error code list
 
 	생성하는 파일 
 	error_gen.go 
-
 
 prefix_idcmd : protocol command (request,response) list 
 
@@ -127,10 +120,16 @@ prefix_packet : protocol packet( header + body )
 	생성하는 파일 
 	packet_gen.go
 
-prefix_version : protocol version 정보 
+prefix_msgp : messagepack marshal/unmarshal code (https://github.com/tinylib/msgp)
 
 	생성하는 파일 
-	version_gen.go
+	serialize_gen.go
+ 
+prefix_json : json marshal/unmarshal code 
+
+	생성하는 파일 
+	serialize_gen.go
+
 
 prefix_loopwsgorilla : go server/client용 gorilla websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
 
