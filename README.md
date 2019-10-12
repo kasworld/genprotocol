@@ -34,6 +34,12 @@ prefix : 각 protocol을 구별하기 위한 prefix
 
 basedir : protocol code가 생성될 기본 dir
 
+## example/rundriver 디렉토리 
+
+json을 serializer로 사용하는 
+tcp server/client, 
+websocket server/client 
+예제 입니다. 
 
 ## 생성되는 go package (디렉토리)
 
@@ -84,8 +90,14 @@ prefix_client : client (접속을 시도 하는 쪽)에서 사용
 	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
 	callsendrecv_gen.go      
 
+prefix_obj : protocol struct 들 (packet body)
+
+	생성하는 파일 
+	objtemplate_gen.go : 예제 파일 - 참고해서 "_gen"이 없는 파일을 만들것 
+
 prefix_server : server ( 접속을 받아 주는 쪽) api 처리
 
+	json_conn.go 참고, copy해서 필요한 서버 로직을 만듭니다. 
 	생성하는 파일 
 	demuxreq2api_gen.go : request 를 api로 연결 
 	apitemplate_gen.go  : api code template, 참고해서 "_gen"이 없는 파일을 만들것 
@@ -115,11 +127,6 @@ prefix_idnoti : protocol notification list
 
 	생성하는 파일 
 	noti_gen.go
-
-prefix_obj : protocol struct 들 (packet body)
-
-	생성하는 파일 
-	objtemplate_gen.go : 예제 파일 - 참고해서 "_gen"이 없는 파일을 만들것 
 
 prefix_packet : protocol packet( header + body )
 
