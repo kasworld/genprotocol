@@ -100,9 +100,12 @@ func (app *App) HandleRecvPacket(header c2s_packet.Header, body []byte) error {
 			return err
 		}
 		psobj := app.pid2statobj.Get(header.ID)
+		if psobj == nil {
+			app.sendRecvStop()
+			return fmt.Errorf("no statobj for %v", header.ID)
+		}
 		psobj.CallServerEnd(header.ErrorCode == c2s_error.None)
 		app.pid2statobj.Del(header.ID)
-
 	}
 	if err == nil {
 		if err = app.sendTestPacket(); err != nil {
