@@ -20,10 +20,12 @@ import (
 	"time"
 
 	"github.com/kasworld/genprotocol/example/c2s_conntcp"
+	"github.com/kasworld/genprotocol/example/c2s_error"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
+	"github.com/kasworld/genprotocol/example/c2s_statcallapi"
 )
 
 // service const
@@ -40,40 +42,89 @@ func main() {
 	flag.Parse()
 	fmt.Printf("addr %v \n", *addr)
 
-	app := new(App)
+	app := NewApp()
+	if err := app.c2sc.ConnectTo(*addr); err != nil {
+		fmt.Printf("%v\n", err)
+		return
+	}
+	app.sendTestPacket()
+	app.sendTestPacket()
+	app.Run()
+}
+
+type App struct {
+	pid          uint32
+	c2sc         *c2s_conntcp.Connection
+	sendRecvStop func()
+	statCallAPI  *c2s_statcallapi.StatCallAPI
+	pid2statobj  *c2s_statcallapi.PacketID2StatObj
+}
+
+func NewApp() *App {
+	app := &App{
+		statCallAPI: c2s_statcallapi.New(),
+		pid2statobj: c2s_statcallapi.NewPacketID2StatObj(),
+	}
 	app.c2sc = c2s_conntcp.New(
 		PacketReadTimeoutSec, PacketWriteTimeoutSec,
 		c2s_json.MarshalBodyFn,
 		app.HandleRecvPacket,
 		app.handleSentPacket,
 	)
-	if err := app.c2sc.ConnectTo(*addr); err != nil {
-		fmt.Printf("%v\n", err)
-		return
-	}
-	app.c2sc.EnqueueSendPacket(app.makePacket())
-	app.c2sc.EnqueueSendPacket(app.makePacket())
-	ctx := context.Background()
-	app.c2sc.Run(ctx)
+	return app
 }
 
-type App struct {
-	pid  uint32
-	c2sc *c2s_conntcp.Connection
+func (app *App) Run() {
+	ctx := context.Background()
+	sendRecvCtx, sendRecvCancel := context.WithCancel(ctx)
+	app.sendRecvStop = sendRecvCancel
+	app.c2sc.Run(sendRecvCtx)
 }
 
 func (app *App) handleSentPacket(header c2s_packet.Header) error {
+	if err := app.statCallAPI.AfterSendReq(header); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (app *App) HandleRecvPacket(header c2s_packet.Header, body []byte) error {
 	robj, err := c2s_json.UnmarshalPacket(header, body)
 	_ = robj
-	// fmt.Println(header, robj, err)
+	switch header.FlowType {
+	case c2s_packet.Response:
+		if err := app.statCallAPI.AfterRecvRsp(header); err != nil {
+			fmt.Printf("%v %v\n", app, err)
+			app.sendRecvStop()
+			return err
+		}
+		psobj := app.pid2statobj.Get(header.ID)
+		psobj.CallServerEnd(header.ErrorCode == c2s_error.None)
+		app.pid2statobj.Del(header.ID)
+
+	}
 	if err == nil {
-		app.c2sc.EnqueueSendPacket(app.makePacket())
+		if err = app.sendTestPacket(); err != nil {
+			return err
+		}
 	}
 	return err
+}
+
+func (app *App) sendTestPacket() error {
+	spk := app.makePacket()
+	psobj, err := app.statCallAPI.BeforeSendReq(spk.Header)
+	if err != nil {
+		return nil
+	}
+	app.pid2statobj.Add(spk.Header.ID, psobj)
+	if err := app.c2sc.EnqueueSendPacket(spk); err != nil {
+		fmt.Printf("End %v %v %v\n", app, spk, err)
+		app.sendRecvStop()
+		return fmt.Errorf("Send fail %v %v", app, err)
+	}
+	return nil
 }
 
 func (app *App) makePacket() c2s_packet.Packet {

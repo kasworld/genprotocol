@@ -1668,6 +1668,37 @@ func buildStatCallAPI(prefix string) (*bytes.Buffer, error) {
 		so.StatRef.close(success, so.StartTime)
 	}
 	////////////////////////////////////////////////////////////////////////////////
+	type PacketID2StatObj struct {
+		mutex sync.RWMutex
+		stats map[uint32]*statObj
+	}
+	func NewPacketID2StatObj() *PacketID2StatObj {
+		return &PacketID2StatObj{
+			stats: make(map[uint32]*statObj),
+		}
+	}
+	func (som *PacketID2StatObj) Add(pkid uint32, so *statObj) error {
+		som.mutex.Lock()
+		defer som.mutex.Unlock()
+		if _, exist := som.stats[pkid]; exist {
+			return fmt.Errorf("pkid exist %v", pkid)
+		}
+		som.stats[pkid] = so
+		return nil
+	}
+	func (som *PacketID2StatObj) Del(pkid uint32) *statObj {
+		som.mutex.Lock()
+		defer som.mutex.Unlock()
+		so := som.stats[pkid]
+		delete(som.stats, pkid)
+		return so
+	}
+	func (som *PacketID2StatObj) Get(pkid uint32) *statObj {
+		som.mutex.RLock()
+		defer som.mutex.RUnlock()
+		return som.stats[pkid]
+	}
+	////////////////////////////////////////////////////////////////////////////////
 	const (
 		HTML_tableheader = %[2]c<tr>
 	<th>Name</th>
