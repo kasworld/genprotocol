@@ -58,17 +58,17 @@ func loadEnumWithComment(filename string) ([][]string, error) {
 // saveTo save go source with format, saved file may need goimport
 func saveTo(outdata *bytes.Buffer, buferr error, outfilename string) error {
 	if buferr != nil {
-		fmt.Printf("fail %v %v", outfilename, buferr)
+		fmt.Printf("fail %v %v\n", outfilename, buferr)
 		return buferr
 	}
 	src, err := format.Source(outdata.Bytes())
 	if err != nil {
 		fmt.Println(outdata)
-		fmt.Printf("fail %v %v", outfilename, err)
+		fmt.Printf("fail %v %v\n", outfilename, err)
 		return err
 	}
 	if werr := ioutil.WriteFile(outfilename, src, 0644); werr != nil {
-		fmt.Printf("fail %v %v", outfilename, werr)
+		fmt.Printf("fail %v %v\n", outfilename, werr)
 		return werr
 	}
 	fmt.Printf("goimports -w %v\n", outfilename)
@@ -110,6 +110,10 @@ func main() {
 		"_connwsgorilla",
 		"_loopwsgorilla",
 		"_looptcp",
+		"_statnoti",
+		"_statcallapi",
+		"_statserveapi",
+		"_statapierror",
 	}
 
 	cmddatafile := path.Join(*basedir, *prefix+"_gendata", "command.data")
@@ -185,6 +189,18 @@ func main() {
 
 	buf, err = buildLoopTCP(*prefix)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_looptcp", "looptcp_gen.go"))
+
+	buf, err = buildStatNoti(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_statnoti", "statnoti_gen.go"))
+
+	buf, err = buildStatCallAPI(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_statcallapi", "statcallapi_gen.go"))
+
+	buf, err = buildStatServeAPI(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_statserveapi", "statserveapi_gen.go"))
+
+	buf, err = buildStatAPIError(*prefix)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_statapierror", "statapierror_gen.go"))
 }
 
 func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
@@ -1359,5 +1375,572 @@ func buildLoopTCP(prefix string) (*bytes.Buffer, error) {
 		return err
 	}
 	`, prefix)
+	return &buf, nil
+}
+
+func buildStatNoti(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_statnoti
+		import (
+			"fmt"
+			"net/http"
+			"sync"
+			"text/template"
+		)
+		`, prefix)
+	fmt.Fprintf(&buf, `
+	func (ns *StatNotification) String() string {
+		return fmt.Sprintf("StatNotification[%%v]", len(ns))
+	}
+	type StatNotification [%[1]s_idnoti.NotiID_Count]StatRow
+	func New() *StatNotification {
+		ns := new(StatNotification)
+		for i := 0; i < %[1]s_idnoti.NotiID_Count; i++ {
+			ns[i].Name = %[1]s_idnoti.NotiID(i).String()
+		}
+		return ns
+	}
+	func (ns *StatNotification) Add(cmd uint16, n int, bodytype byte) {
+		if int(cmd) >= %[1]s_idnoti.NotiID_Count {
+			return
+		}
+		ns[cmd].add(n, bodytype)
+	}
+	func (ns *StatNotification) ToWeb(w http.ResponseWriter, r *http.Request) error {
+		tplIndex, err := template.New("index").Parse(%[2]c
+	<html><head><title>Notification packet stat Info</title></head><body>
+	<table border=1 style="border-collapse:collapse;">%[2]c +
+			HTML_tableheader +
+			%[2]c{{range $i, $v := .}}%[2]c +
+			HTML_row +
+			%[2]c{{end}}%[2]c +
+			HTML_tableheader +
+			%[2]c</table><br/>
+	</body></html>%[2]c)
+		if err != nil {
+			return err
+		}
+		if err := tplIndex.Execute(w, ns); err != nil {
+			return err
+		}
+		return nil
+	}
+	const (
+		HTML_tableheader = %[2]c<tr>
+	<th>Name</th>
+	<th>Count</th>
+	<th>Total Byte</th>
+	<th>Max Byte</th>
+	<th>Avg Byte</th>
+	</tr>%[2]c
+		HTML_row = %[2]c<tr>
+	<td>{{$v.Name}}</td>
+	<td>{{$v.Count }}</td>
+	<td>{{$v.TotalByte }}</td>
+	<td>{{$v.MaxByte }}</td>
+	<td>{{printf "%%10.3f" $v.Avg }}</td>
+	</tr>
+	%[2]c
+	)
+	type StatRow struct {
+		mutex     sync.Mutex
+		Name      string
+		Count     int
+		TotalByte int
+		MaxByte   int
+	}
+	func (ps *StatRow) add(n int, bodytype byte) {
+		ps.mutex.Lock()
+		ps.Count++
+		ps.TotalByte += n
+		if n > ps.MaxByte {
+			ps.MaxByte = n
+		}
+		ps.mutex.Unlock()
+	}
+	func (ps *StatRow) Avg() float64 {
+		return float64(ps.TotalByte) / float64(ps.Count)
+	}
+	`, prefix, '`')
+	return &buf, nil
+}
+
+func buildStatCallAPI(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_statcallapi
+		import (
+			"fmt"
+			"html/template"
+			"net/http"
+			"sync"
+			"time"
+		)
+		`, prefix)
+	fmt.Fprintf(&buf, `
+	func (cps *StatCallAPI) String() string {
+		return fmt.Sprintf("StatCallAPI[%%v]",
+			len(cps))
+	}
+	type StatCallAPI [%[1]s_idcmd.CommandID_Count]StatRow
+	func New() *StatCallAPI {
+		cps := new(StatCallAPI)
+		for i := 0; i < %[1]s_idcmd.CommandID_Count; i++ {
+			cps[i].Name = %[1]s_idcmd.CommandID(i).String()
+		}
+		return cps
+	}
+	func (cps *StatCallAPI) BeforeSendReq(header %[1]s_packet.Header) (*statObj, error) {
+		if int(header.Cmd) >= %[1]s_idcmd.CommandID_Count {
+			return nil, fmt.Errorf("CommandID out of range %%v %%v",
+				header, %[1]s_idcmd.CommandID_Count)
+		}
+		return cps[header.Cmd].open(), nil
+	}
+	func (cps *StatCallAPI) AfterSendReq(header %[1]s_packet.Header) error {
+		if int(header.Cmd) >= %[1]s_idcmd.CommandID_Count {
+			return fmt.Errorf("CommandID out of range %%v %%v", header, %[1]s_idcmd.CommandID_Count)
+		}
+		n := int(header.BodyLen()) + %[1]s_packet.HeaderLen
+		cps[header.Cmd].addTx(n)
+		return nil
+	}
+	func (cps *StatCallAPI) AfterRecvRsp(header %[1]s_packet.Header) error {
+		if int(header.Cmd) >= %[1]s_idcmd.CommandID_Count {
+			return fmt.Errorf("CommandID out of range %%v %%v", header, %[1]s_idcmd.CommandID_Count)
+		}
+		n := int(header.BodyLen()) + %[1]s_packet.HeaderLen
+		cps[header.Cmd].addRx(n)
+		return nil
+	}
+	func (ws *StatCallAPI) ToWeb(w http.ResponseWriter, r *http.Request) error {
+		tplIndex, err := template.New("index").Parse(%[2]c
+	<html><head><title>Call API Stat Info</title></head><body>
+	<table border=1 style="border-collapse:collapse;">%[2]c +
+			HTML_tableheader +
+			%[2]c{{range $i, $v := .}}%[2]c +
+			HTML_row +
+			%[2]c{{end}}%[2]c +
+			HTML_tableheader +
+			%[2]c</table><br/>
+	</body></html>%[2]c)
+		if err != nil {
+			return err
+		}
+		if err := tplIndex.Execute(w, ws); err != nil {
+			return err
+		}
+		return nil
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	type statObj struct {
+		StartTime time.Time
+		StatRef   *StatRow
+	}
+	func (so *statObj) CallServerEnd(success bool) {
+		so.StatRef.close(success, so.StartTime)
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	const (
+		HTML_tableheader = %[2]c<tr>
+	<th>Name</th>
+	<th>Start</th>
+	<th>End</th>
+	<th>Success</th>
+	<th>Running</th>
+	<th>Fail</th>
+	<th>Avg ms</th>
+	<th>TxAvg Byte</th>
+	<th>RxAvg Byte</th>
+	</tr>%[2]c
+		HTML_row = %[2]c<tr>
+	<td>{{$v.Name}}</td>
+	<td>{{$v.StartCount}}</td>
+	<td>{{$v.EndCount}}</td>
+	<td>{{$v.SuccessCount}}</td>
+	<td>{{$v.RunCount}}</td>
+	<td>{{$v.FailCount}}</td>
+	<td>{{printf "%%13.6f" $v.Avgms }}</td>
+	<td>{{printf "%%10.3f" $v.AvgTx }}</td>
+	<td>{{printf "%%10.3f" $v.AvgRx }}</td>
+	</tr>
+	%[2]c
+	)
+	type StatRow struct {
+		mutex sync.Mutex
+		Name  string
+		TxCount int
+		TxByte  int
+		RxCount int
+		RxByte  int
+		StartCount   int
+		EndCount     int
+		SuccessCount int
+		Sum          time.Duration
+	}
+	func (sr *StatRow) open() *statObj {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.StartCount++
+		return &statObj{
+			StartTime: time.Now(),
+			StatRef:   sr,
+		}
+	}
+	func (sr *StatRow) close(success bool, startTime time.Time) {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.EndCount++
+		if success {
+			sr.SuccessCount++
+			sr.Sum += time.Now().Sub(startTime)
+		}
+	}
+	func (sr *StatRow) addTx(n int) {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.TxCount++
+		sr.TxByte += n
+	}
+	func (sr *StatRow) addRx(n int) {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.RxCount++
+		sr.RxByte += n
+	}
+	func (sr *StatRow) RunCount() int {
+		return sr.StartCount - sr.EndCount
+	}
+	func (sr *StatRow) FailCount() int {
+		return sr.EndCount - sr.SuccessCount
+	}
+	func (sr *StatRow) Avgms() float64 {
+		if sr.EndCount != 0 {
+			return float64(sr.Sum) / float64(sr.EndCount*1000000)
+		}
+		return 0.0
+	}
+	func (sr *StatRow) AvgRx() float64 {
+		if sr.EndCount != 0 {
+			return float64(sr.RxByte) / float64(sr.RxCount)
+		}
+		return 0.0
+	}
+	func (sr *StatRow) AvgTx() float64 {
+		if sr.EndCount != 0 {
+			return float64(sr.TxByte) / float64(sr.TxCount)
+		}
+		return 0.0
+	}
+	`, prefix, '`')
+	return &buf, nil
+}
+
+func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_statserveapi
+		import (
+			"fmt"
+			"net/http"
+			"sync"
+			"text/template"
+			"time"
+		)
+		`, prefix)
+
+	fmt.Fprintf(&buf, `
+	func (ps *StatServeAPI) String() string {
+		return fmt.Sprintf("StatServeAPI[%%v]", len(ps))
+	}
+	type StatServeAPI [%[1]s_idcmd.CommandID_Count]StatRow
+	func New() *StatServeAPI {
+		ps := new(StatServeAPI)
+		for i := 0; i < %[1]s_idcmd.CommandID_Count; i++ {
+			ps[i].Name = %[1]s_idcmd.CommandID(i).String()
+		}
+		return ps
+	}
+	func (ps *StatServeAPI) AfterRecvReqHeader(header %[1]s_packet.Header) (*StatObj, error) {
+		if int(header.Cmd) >= %[1]s_idcmd.CommandID_Count {
+			return nil, fmt.Errorf("CommandID out of range %%v %%v", header, %[1]s_idcmd.CommandID_Count)
+		}
+		return ps[header.Cmd].open(
+			int(header.BodyLen())+%[1]s_packet.HeaderLen,
+			header.BodyType()), nil
+	}
+	func (ws *StatServeAPI) ToWeb(w http.ResponseWriter, r *http.Request) error {
+		tplIndex, err := template.New("index").Parse(%[2]c
+	<html><head><title>Serve API stat Info</title></head><body>
+	<table border=1 style="border-collapse:collapse;">%[2]c +
+			HTML_tableheader +
+			%[2]c{{range $i, $v := .}}%[2]c +
+			HTML_row +
+			%[2]c{{end}}%[2]c +
+			HTML_tableheader +
+			%[2]c</table><br/>
+	</body></html>%[2]c)
+		if err != nil {
+			return err
+		}
+		if err := tplIndex.Execute(w, ws); err != nil {
+			return err
+		}
+		return nil
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	type StatObj struct {
+		RecvTime    time.Time
+		APICallTime time.Time
+		StatRef     *StatRow
+	}
+	func (sm *StatObj) BeforeAPICall() {
+		sm.APICallTime = time.Now().UTC()
+		sm.StatRef.afterAuth()
+	}
+	func (sm *StatObj) AfterAPICall() {
+		sm.StatRef.apiEnd(time.Now().UTC().Sub(sm.APICallTime))
+	}
+	func (sm *StatObj) AfterSendRsp(n int, bodytype byte) {
+		sm.StatRef.afterSend(n, time.Now().UTC().Sub(sm.RecvTime), bodytype)
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	type PacketID2StatObj struct {
+		mutex sync.RWMutex
+		stats map[uint32]*StatObj
+	}
+	func NewPacketID2StatObj() *PacketID2StatObj {
+		return &PacketID2StatObj{
+			stats: make(map[uint32]*StatObj),
+		}
+	}
+	func (som *PacketID2StatObj) Add(pkid uint32, so *StatObj) error {
+		som.mutex.Lock()
+		defer som.mutex.Unlock()
+		if _, exist := som.stats[pkid]; exist {
+			return fmt.Errorf("pkid exist %%v", pkid)
+		}
+		som.stats[pkid] = so
+		return nil
+	}
+	func (som *PacketID2StatObj) Del(pkid uint32) *StatObj {
+		som.mutex.Lock()
+		defer som.mutex.Unlock()
+		so := som.stats[pkid]
+		delete(som.stats, pkid)
+		return so
+	}
+	func (som *PacketID2StatObj) Get(pkid uint32) *StatObj {
+		som.mutex.RLock()
+		defer som.mutex.RUnlock()
+		return som.stats[pkid]
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	const (
+		HTML_tableheader = %[2]c<tr>
+	<th>Name</th>
+	<th>Recv Count</th>
+	<th>Auth Count</th>
+	<th>APIEnd Count</th>
+	<th>Send Count</th>
+	<th>Run Count</th>
+	<th>Fail Count</th>
+	<th>RecvSend Avg ms</th>
+	<th>API Avg ms</th>
+	<th>Rx Avg Byte</th>
+	<th>Rx Max Byte</th>
+	<th>Tx Avg Byte</th>
+	<th>Tx Max Byte</th>
+	</tr>%[2]c
+		HTML_row = %[2]c<tr>
+	<td>{{$v.Name}}</td>
+	<td>{{$v.RecvCount}}</td>
+	<td>{{$v.AuthCount}}</td>
+	<td>{{$v.APIEndCount}}</td>
+	<td>{{$v.SendCount}}</td>
+	<td>{{$v.RunCount}}</td>
+	<td>{{$v.FailCount}}</td>
+	<td>{{printf "%%13.6f" $v.RSAvgms }}</td>
+	<td>{{printf "%%13.6f" $v.APIAvgms }}</td>
+	<td>{{printf "%%10.3f" $v.AvgRxByte }}</td>
+	<td>{{$v.MaxRecvBytes }}</td>
+	<td>{{printf "%%10.3f" $v.AvgTxByte }}</td>
+	<td>{{$v.MaxSendBytes }}</td>
+	</tr>
+	%[2]c
+	)
+	type StatRow struct {
+		mutex sync.Mutex
+		Name  string
+		RecvCount    int
+		MaxRecvBytes int
+		RecvBytes    int
+		SendCount    int
+		MaxSendBytes int
+		SendBytes    int
+		RecvSendDurSum time.Duration
+		AuthCount      int
+		APIEndCount    int
+		APIDurSum      time.Duration
+	}
+	func (sr *StatRow) open(rxbyte int, bodytype byte) *StatObj {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.RecvCount++
+		sr.RecvBytes += rxbyte
+		if sr.MaxRecvBytes < rxbyte {
+			sr.MaxRecvBytes = rxbyte
+		}
+		rtn := &StatObj{
+			RecvTime: time.Now().UTC(),
+			StatRef:  sr,
+		}
+		return rtn
+	}
+	func (sr *StatRow) afterAuth() {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.AuthCount++
+	}
+	func (sr *StatRow) apiEnd(diffDur time.Duration) {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.APIEndCount++
+		sr.APIDurSum += diffDur
+	}
+	func (sr *StatRow) afterSend(txbyte int, diffDur time.Duration, bodytype byte) {
+		sr.mutex.Lock()
+		defer sr.mutex.Unlock()
+		sr.SendCount++
+		sr.SendBytes += txbyte
+		if sr.MaxSendBytes < txbyte {
+			sr.MaxSendBytes = txbyte
+		}
+		sr.RecvSendDurSum += diffDur
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	func (sr *StatRow) RunCount() int {
+		return sr.AuthCount - sr.APIEndCount
+	}
+	func (sr *StatRow) FailCount() int {
+		return sr.APIEndCount - sr.SendCount
+	}
+	func (sr *StatRow) RSAvgms() float64 {
+		if sr.SendCount == 0 {
+			return 0
+		}
+		return float64(sr.RecvSendDurSum) / float64(sr.SendCount*1000000)
+	}
+	func (sr *StatRow) APIAvgms() float64 {
+		if sr.APIEndCount == 0 {
+			return 0
+		}
+		return float64(sr.APIDurSum) / float64(sr.APIEndCount*1000000)
+	}
+	func (sr *StatRow) AvgRxByte() float64 {
+		if sr.RecvCount == 0 {
+			return 0
+		}
+		return float64(sr.RecvBytes) / float64(sr.RecvCount)
+	}
+	func (sr *StatRow) AvgTxByte() float64 {
+		if sr.SendCount == 0 {
+			return 0
+		}
+		return float64(sr.SendBytes) / float64(sr.SendCount)
+	}
+	`, prefix, '`')
+	return &buf, nil
+}
+
+func buildStatAPIError(prefix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s_statapierror
+		import (
+			"fmt"
+			"html/template"
+			"net/http"
+			"sync"
+		)
+		`, prefix)
+
+	fmt.Fprintf(&buf, `
+	func (es *StatAPIError) String() string {
+		return fmt.Sprintf(
+			"StatAPIError[%%v %%v %%v]",
+			len(es.Stat),
+			len(es.ECList),
+			len(es.CmdList),
+		)
+	}
+	type StatAPIError struct {
+		mutex   sync.RWMutex
+		Stat    [][]int
+		ECList  []string
+		CmdList []string
+	}
+	func New() *StatAPIError {
+		es := &StatAPIError{
+			Stat: make([][]int, %[1]s_idcmd.CommandID_Count),
+		}
+		for i, _ := range es.Stat {
+			es.Stat[i] = make([]int, %[1]s_error.ErrorCode_Count)
+		}
+		es.ECList = make([]string, %[1]s_error.ErrorCode_Count)
+		for i, _ := range es.ECList {
+			es.ECList[i] = fmt.Sprintf("%%s", %[1]s_error.ErrorCode(i).String())
+		}
+		es.CmdList = make([]string, %[1]s_idcmd.CommandID_Count)
+		for i, _ := range es.CmdList {
+			es.CmdList[i] = fmt.Sprintf("%%v", %[1]s_idcmd.CommandID(i))
+		}
+		return es
+	}
+	func (es *StatAPIError) Inc(cmd %[1]s_idcmd.CommandID, errorcode %[1]s_error.ErrorCode) {
+		es.mutex.Lock()
+		defer es.mutex.Unlock()
+		es.Stat[cmd][errorcode]++
+	}
+	func (es *StatAPIError) ToWeb(w http.ResponseWriter, r *http.Request) error {
+		tplIndex, err := template.New("index").Parse(%[2]c
+	<html><head><title>API Error stat Info</title></head><body>
+	<table border=1 style="border-collapse:collapse;">
+	<tr>
+		<td></td>
+		{{range $ft, $v := .ECList}}
+			<th>{{$v}}</th>
+		{{end}}
+	</tr>
+	{{range $cmd, $w := .Stat}}
+		<tr>
+			<td>{{index $.CmdList $cmd}}</td>
+			{{range $ft, $v := $w}}
+				<td>{{$v}}</td>
+			{{end}}
+		</tr>
+	{{end}}
+	<tr>
+		<td></td>
+		{{range $ft, $v := .ECList}}
+			<th>{{$v}}</th>
+		{{end}}
+	</tr>
+	</table><br/>
+	</body></html>%[2]c)
+		if err != nil {
+			return err
+		}
+		if err := tplIndex.Execute(w, es); err != nil {
+			return err
+		}
+		return nil
+	}
+	`, prefix, '`')
 	return &buf, nil
 }
