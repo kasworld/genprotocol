@@ -241,7 +241,50 @@ func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buf
 		}
 		return fmt.Sprintf("%[1]s%%d", uint16(e))
 	}
-		`, enumtype)
+	`, enumtype)
+
+	return &buf, nil
+}
+
+func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+		package %[1]s
+		import "fmt"
+		type %v uint16 // use in packet header, DO NOT CHANGE
+	`, pkgname, enumtype)
+
+	fmt.Fprintf(&buf, "const (\n")
+	for i, v := range data {
+		if i == 0 {
+			fmt.Fprintf(&buf, "%v %v = iota // %v \n", v[0], enumtype, v[1])
+		} else {
+			fmt.Fprintf(&buf, "%v // %v\n", v[0], v[1])
+		}
+	}
+	fmt.Fprintf(&buf, `
+	%[1]s_Count int = iota 
+	)
+	var _%[1]s_str = map[%[1]s]string{
+	`, enumtype)
+
+	for _, v := range data {
+		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	fmt.Fprintf(&buf, `
+	func (e %[1]s) String() string {
+		if s, exist := _%[1]s_str[e]; exist {
+			return s
+		}
+		return fmt.Sprintf("%[1]s%%d", uint16(e))
+	}
+	// implement error interface
+	func (e %[1]s) Error() string {
+		return fmt.Sprintf("%[2]s%%s", e)
+	}
+	`, enumtype, pkgname)
 
 	return &buf, nil
 }
