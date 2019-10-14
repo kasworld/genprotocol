@@ -149,7 +149,7 @@ func main() {
 	buf, err = buildDataCode(*prefix+"_idnoti", "NotiID", notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_idnoti", "noti_gen.go"))
 
-	buf, err = buildDataCode(*prefix+"_error", "ErrorCode", errordata)
+	buf, err = buildErrorCode(*prefix+"_error", "ErrorCode", errordata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_error", "error_gen.go"))
 
 	buf, err = buildPacket(*prefix)
