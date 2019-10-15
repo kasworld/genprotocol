@@ -59,11 +59,11 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_obj/objtemplate_gen.go
 	goimports -w example/c2s_msgp/serialize_gen.go
 	goimports -w example/c2s_json/serialize_gen.go
-	goimports -w example/c2s_client/recvrspobjfnmap_gen.go
-	goimports -w example/c2s_client/recvnotiobjfnmap_gen.go
-	goimports -w example/c2s_client/callsendrecv_gen.go
-	goimports -w example/c2s_server/demuxreq2api_gen.go
-	goimports -w example/c2s_server/apitemplate_gen.go
+	goimports -w example/c2s_handlersp/recvrspobjfnmap_gen.go
+	goimports -w example/c2s_handlenoti/recvnotiobjfnmap_gen.go
+	goimports -w example/c2s_callsendrecv/callsendrecv_gen.go
+	goimports -w example/c2s_handlereq/recvreqobjfnmap_gen.go
+	goimports -w example/c2s_handlereq/apitemplate_gen.go
 	goimports -w example/c2s_conntcp/conntcp_gen.go
 	goimports -w example/c2s_connwasm/connwasm_gen.go
 	goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
@@ -88,7 +88,7 @@ prefix_obj : protocol struct 들 (packet body)
 	생성하는 파일 
 	objtemplate_gen.go : 예제 파일 - 참고해서 "_gen"이 없는 파일을 만들것 
 
-prefix_server : server ( 접속을 받아 주는 쪽) api 처리
+prefix_handlereq :  request 를 받아서 api 로 전달 
 
 	json_conn.go 참고, copy해서 필요한 서버 로직을 만듭니다. 
 	생성하는 파일 
@@ -100,7 +100,7 @@ prefix_version : protocol version 정보
 	생성하는 파일 
 	version_gen.go
 
-prefix_error : protocol error code list
+prefix_error : protocol error code list, errorcode type은 error를 구현하고 있다.
 
 	생성하는 파일 
 	error_gen.go 
@@ -156,11 +156,19 @@ prefix_conntcp : tcp client 용 connection
 	생성하는 파일 
 	conntcp_gen.go
 
-prefix_client : client (접속을 시도 하는 쪽)에서 사용 
+prefix_handlersp : response 를 받아서 처리 
 
 	생성하는 파일 
 	recvrspobjfnmap_gen.go   : 받은 response 처리 
+
+prefix_handlenoti : notification을 받아서 처리 
+
+	생성하는 파일 
 	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
+
+prefix_callsendrecv : blocked send/recv : response 를 받을때 까지 wait
+
+	생성하는 파일 
 	callsendrecv_gen.go      
 
 prefix_statnoti : notification protocol 통계 
