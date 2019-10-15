@@ -20,7 +20,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/kasworld/genprotocol/example/c2s_server"
+	"github.com/kasworld/genprotocol/example/c2s_handlereq"
 )
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 }
 
 func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
-	c2sc := c2s_server.NewServeClientConn()
+	c2sc := c2s_handlereq.NewServeClientConn()
 	c2sc.StartServeTCP(ctx, conn)
 	conn.Close()
 }

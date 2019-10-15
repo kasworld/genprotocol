@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/kasworld/genprotocol/example/c2s_server"
+	"github.com/kasworld/genprotocol/example/c2s_handlereq"
 )
 
 func main() {
@@ -61,7 +61,7 @@ func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	c2sc := c2s_server.NewServeClientConn()
+	c2sc := c2s_handlereq.NewServeClientConn()
 	c2sc.StartServeWS(ctx, wsConn)
 
 	// connected user play

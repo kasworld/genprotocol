@@ -8,11 +8,11 @@ goimports -w example/c2s_packet/packet_gen.go
 goimports -w example/c2s_obj/objtemplate_gen.go
 goimports -w example/c2s_msgp/serialize_gen.go
 goimports -w example/c2s_json/serialize_gen.go
-goimports -w example/c2s_client/recvrspobjfnmap_gen.go
-goimports -w example/c2s_client/recvnotiobjfnmap_gen.go
-goimports -w example/c2s_client/callsendrecv_gen.go
-goimports -w example/c2s_server/demuxreq2api_gen.go
-goimports -w example/c2s_server/apitemplate_gen.go
+goimports -w example/c2s_handlersp/recvrspobjfnmap_gen.go
+goimports -w example/c2s_handlenoti/recvnotiobjfnmap_gen.go
+goimports -w example/c2s_callsendrecv/callsendrecv_gen.go
+goimports -w example/c2s_handlereq/recvreqobjfnmap_gen.go
+goimports -w example/c2s_handlereq/apitemplate_gen.go
 goimports -w example/c2s_conntcp/conntcp_gen.go
 goimports -w example/c2s_connwasm/connwasm_gen.go
 goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go

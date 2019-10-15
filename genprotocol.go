@@ -95,8 +95,10 @@ func main() {
 	}
 
 	dirToMake := []string{
-		"_client",
-		"_server",
+		"_handlersp",
+		"_handlereq",
+		"_handlenoti",
+		"_callsendrecv",
 		"_msgp",
 		"_json",
 		"_error",
@@ -140,7 +142,7 @@ func main() {
 		os.MkdirAll(path.Join(*basedir, *prefix+v), os.ModePerm)
 	}
 
-	buf, err := buildVersion(*prefix, *ver)
+	buf, err := buildVersion(*prefix+"_version", *ver)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_version", "version_gen.go"))
 
 	buf, err = buildDataCode(*prefix+"_idcmd", "CommandID", cmddata)
@@ -152,58 +154,58 @@ func main() {
 	buf, err = buildErrorCode(*prefix+"_error", "ErrorCode", errordata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_error", "error_gen.go"))
 
-	buf, err = buildPacket(*prefix)
+	buf, err = buildPacket(*prefix, *prefix+"_packet")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_packet", "packet_gen.go"))
 
-	buf, err = buildObjTemplate(*prefix, cmddata, notidata)
+	buf, err = buildObjTemplate(*prefix, *prefix+"_obj", cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_obj", "objtemplate_gen.go"))
 
-	buf, err = buildMSGP(*prefix, cmddata, notidata)
+	buf, err = buildMSGP(*prefix, *prefix+"_msgp", cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_msgp", "serialize_gen.go"))
 
-	buf, err = buildJSON(*prefix, cmddata, notidata)
+	buf, err = buildJSON(*prefix, *prefix+"_json", cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_json", "serialize_gen.go"))
 
-	buf, err = buildRecvRspFnMap(*prefix, cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_client", "recvrspobjfnmap_gen.go"))
+	buf, err = buildRecvRspFnMap(*prefix, *prefix+"_handlersp", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlersp", "recvrspobjfnmap_gen.go"))
 
-	buf, err = buildRecvNotiFnMap(*prefix, cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_client", "recvnotiobjfnmap_gen.go"))
+	buf, err = buildRecvNotiFnMap(*prefix, *prefix+"_handlenoti", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlenoti", "recvnotiobjfnmap_gen.go"))
 
-	buf, err = buildClientSendRecv(*prefix, cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_client", "callsendrecv_gen.go"))
+	buf, err = buildCallSendRecv(*prefix, *prefix+"_callsendrecv", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_callsendrecv", "callsendrecv_gen.go"))
 
-	buf, err = buildDemuxReq2API(*prefix, cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_server", "demuxreq2api_gen.go"))
+	buf, err = buildRecvReqFnMap(*prefix, *prefix+"_handlereq", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlereq", "recvreqobjfnmap_gen.go"))
 
-	buf, err = buildAPITemplate(*prefix, cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_server", "apitemplate_gen.go"))
+	buf, err = buildAPITemplate(*prefix, *prefix+"_handlereq", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlereq", "apitemplate_gen.go"))
 
-	buf, err = buildConnTCP(*prefix)
+	buf, err = buildConnTCP(*prefix, *prefix+"_conntcp")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_conntcp", "conntcp_gen.go"))
 
-	buf, err = buildConnWasm(*prefix)
+	buf, err = buildConnWasm(*prefix, *prefix+"_connwasm")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_connwasm", "connwasm_gen.go"))
 
-	buf, err = buildConnWSGorilla(*prefix)
+	buf, err = buildConnWSGorilla(*prefix, *prefix+"_connwsgorilla")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_connwsgorilla", "connwsgorilla_gen.go"))
 
-	buf, err = buildLoopWSGorilla(*prefix)
+	buf, err = buildLoopWSGorilla(*prefix, *prefix+"_loopwsgorilla")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_loopwsgorilla", "loopwsgorilla_gen.go"))
 
-	buf, err = buildLoopTCP(*prefix)
+	buf, err = buildLoopTCP(*prefix, *prefix+"_looptcp")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_looptcp", "looptcp_gen.go"))
 
-	buf, err = buildStatNoti(*prefix)
+	buf, err = buildStatNoti(*prefix, *prefix+"_statnoti")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statnoti", "statnoti_gen.go"))
 
-	buf, err = buildStatCallAPI(*prefix)
+	buf, err = buildStatCallAPI(*prefix, *prefix+"_statcallapi")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statcallapi", "statcallapi_gen.go"))
 
-	buf, err = buildStatServeAPI(*prefix)
+	buf, err = buildStatServeAPI(*prefix, *prefix+"_statserveapi")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statserveapi", "statserveapi_gen.go"))
 
-	buf, err = buildStatAPIError(*prefix)
+	buf, err = buildStatAPIError(*prefix, *prefix+"_statapierror")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statapierror", "statapierror_gen.go"))
 }
 
@@ -289,55 +291,56 @@ func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Bu
 	return &buf, nil
 }
 
-func buildVersion(prefix, ver string) (*bytes.Buffer, error) {
+func buildVersion(pkgname string, ver string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-	package %[1]s_version
+	package %[1]s
 	const ProtocolVersion = "%[2]s"
-	`, prefix, ver)
+	`, pkgname, ver)
 	return &buf, nil
 }
 
-func buildMSGP(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildMSGP(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_msgp
+		package %[1]s
+	`, pkgname)
+	fmt.Fprintf(&buf, `
+	// MarshalBodyFn marshal body and append to oldBufferToAppend
+	// and return newbuffer, body type(marshaltype,compress,encryption), error
+	func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
+		newBuffer, err := body.(msgp.Marshaler).MarshalMsg(oldBuffToAppend)
+		return newBuffer, 0, err
+	}
 
-		// MarshalBodyFn marshal body and append to oldBufferToAppend
-		// and return newbuffer, body type(marshaltype,compress,encryption), error
-		func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
-			newBuffer, err := body.(msgp.Marshaler).MarshalMsg(oldBuffToAppend)
-			return newBuffer, 0, err
-		}
-
-		func UnmarshalPacket(h %[1]s_packet.Header,  bodyData []byte) (interface{}, error) {
-			switch h.FlowType {
-			case %[1]s_packet.Request:
-				if int(h.Cmd) >= len(ReqUnmarshalMap) {
-					return nil, fmt.Errorf("unknown request command: %%v %%v", 
-					h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
-				}
-				return ReqUnmarshalMap[h.Cmd](h,bodyData)
-
-			case %[1]s_packet.Response:
-				if int(h.Cmd) >= len(RspUnmarshalMap) {
-					return nil, fmt.Errorf("unknown response command: %%v %%v", 
-					h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
-				}
-				return RspUnmarshalMap[h.Cmd](h,bodyData)
-
-			case %[1]s_packet.Notification:
-				if int(h.Cmd) >= len(NotiUnmarshalMap) {
-					return nil, fmt.Errorf("unknown notification command: %%v %%v", 
-					h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
-				}
-				return NotiUnmarshalMap[h.Cmd](h,bodyData)
+	func UnmarshalPacket(h %[1]s_packet.Header,  bodyData []byte) (interface{}, error) {
+		switch h.FlowType {
+		case %[1]s_packet.Request:
+			if int(h.Cmd) >= len(ReqUnmarshalMap) {
+				return nil, fmt.Errorf("unknown request command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
 			}
-			return nil, fmt.Errorf("unknown packet FlowType %%v",h.FlowType)
+			return ReqUnmarshalMap[h.Cmd](h,bodyData)
+
+		case %[1]s_packet.Response:
+			if int(h.Cmd) >= len(RspUnmarshalMap) {
+				return nil, fmt.Errorf("unknown response command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return RspUnmarshalMap[h.Cmd](h,bodyData)
+
+		case %[1]s_packet.Notification:
+			if int(h.Cmd) >= len(NotiUnmarshalMap) {
+				return nil, fmt.Errorf("unknown notification command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return NotiUnmarshalMap[h.Cmd](h,bodyData)
 		}
-		`, prefix, ver)
+		return nil, fmt.Errorf("unknown packet FlowType %%v",h.FlowType)
+	}
+	`, prefix, ver)
 
 	const unmarshalMapHeader = `
 	var %[2]s = [...]func(h %[1]s_packet.Header,bodyData []byte) (interface{}, error) {
@@ -384,49 +387,50 @@ func buildMSGP(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, erro
 	return &buf, nil
 }
 
-func buildJSON(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildJSON(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_json
-
-		// marshal body and append to oldBufferToAppend
-		// and return newbuffer, body type(marshaltype,compress,encryption), error
-		func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
-			var newBuffer []byte
-			mdata, err := json.Marshal(body)
-			if err == nil {
-				newBuffer = append(oldBuffToAppend, mdata...)
-			}
-			return newBuffer, 0, err
+		package %[1]s
+	`, pkgname)
+	fmt.Fprintf(&buf, `
+	// marshal body and append to oldBufferToAppend
+	// and return newbuffer, body type(marshaltype,compress,encryption), error
+	func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
+		var newBuffer []byte
+		mdata, err := json.Marshal(body)
+		if err == nil {
+			newBuffer = append(oldBuffToAppend, mdata...)
 		}
-		
-		func UnmarshalPacket(h %[1]s_packet.Header,  bodyData []byte) (interface{}, error) {
-			switch h.FlowType {
-			case %[1]s_packet.Request:
-				if int(h.Cmd) >= len(ReqUnmarshalMap) {
-					return nil, fmt.Errorf("unknown request command: %%v %%v", 
-					h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
-				}
-				return ReqUnmarshalMap[h.Cmd](h,bodyData)
-
-			case %[1]s_packet.Response:
-				if int(h.Cmd) >= len(RspUnmarshalMap) {
-					return nil, fmt.Errorf("unknown response command: %%v %%v", 
-					h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
-				}
-				return RspUnmarshalMap[h.Cmd](h,bodyData)
-
-			case %[1]s_packet.Notification:
-				if int(h.Cmd) >= len(NotiUnmarshalMap) {
-					return nil, fmt.Errorf("unknown notification command: %%v %%v", 
-					h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
-				}
-				return NotiUnmarshalMap[h.Cmd](h,bodyData)
+		return newBuffer, 0, err
+	}
+	
+	func UnmarshalPacket(h %[1]s_packet.Header,  bodyData []byte) (interface{}, error) {
+		switch h.FlowType {
+		case %[1]s_packet.Request:
+			if int(h.Cmd) >= len(ReqUnmarshalMap) {
+				return nil, fmt.Errorf("unknown request command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
 			}
-			return nil, fmt.Errorf("unknown packet FlowType %%v",h.FlowType)
+			return ReqUnmarshalMap[h.Cmd](h,bodyData)
+
+		case %[1]s_packet.Response:
+			if int(h.Cmd) >= len(RspUnmarshalMap) {
+				return nil, fmt.Errorf("unknown response command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return RspUnmarshalMap[h.Cmd](h,bodyData)
+
+		case %[1]s_packet.Notification:
+			if int(h.Cmd) >= len(NotiUnmarshalMap) {
+				return nil, fmt.Errorf("unknown notification command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return NotiUnmarshalMap[h.Cmd](h,bodyData)
 		}
-		`, prefix, ver)
+		return nil, fmt.Errorf("unknown packet FlowType %%v",h.FlowType)
+	}
+	`, prefix, ver)
 
 	const unmarshalMapHeader = `
 	var %[2]s = [...]func(h %[1]s_packet.Header,bodyData []byte) (interface{}, error) {
@@ -473,15 +477,15 @@ func buildJSON(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, erro
 	return &buf, nil
 }
 
-func buildRecvRspFnMap(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvRspFnMap(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_client
-		import (
-			"fmt"
-		)
-		`, prefix)
+	package %[1]s
+	import (
+		"fmt"
+	)
+	`, pkgname)
 
 	fmt.Fprintf(&buf,
 		"\nvar RecvRspObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
@@ -504,15 +508,15 @@ func buildRecvRspFnMap(prefix string, cmddata, notidata [][]string) (*bytes.Buff
 	return &buf, nil
 }
 
-func buildRecvNotiFnMap(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvNotiFnMap(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_client
-		import (
-			"fmt"
-		)
-		`, prefix)
+	package %[1]s
+	import (
+		"fmt"
+	)
+	`, pkgname)
 
 	fmt.Fprintf(&buf,
 		"\nvar RecvNotiObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
@@ -535,23 +539,19 @@ func buildRecvNotiFnMap(prefix string, cmddata, notidata [][]string) (*bytes.Buf
 	return &buf, nil
 }
 
-func buildClientSendRecv(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildCallSendRecv(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_client
-
-		type C2SConnectI interface {
-			SendRecv(
-				cmd %[1]s_idcmd.CommandID, body interface{}) (
-				%[1]s_packet.Header, interface{}, error)
-		
-			CheckAPI(hd %[1]s_packet.Header) error
+	package %[1]s
+	type C2SConnectI interface {
+		SendRecv(
+			cmd %[1]s_idcmd.CommandID, body interface{}) (
+			%[1]s_packet.Header, interface{}, error)
 	
-		}
-		
-		`, prefix)
-
+		CheckAPI(hd %[1]s_packet.Header) error
+	}
+	`, pkgname)
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
 			func Call_%[2]s(c2sc C2SConnectI,arg *%[1]s_obj.Req%[2]s_data) (*%[1]s_obj.Rsp%[2]s_data, error) {
@@ -572,12 +572,13 @@ func buildClientSendRecv(prefix string, cmddata, notidata [][]string) (*bytes.Bu
 	return &buf, nil
 }
 
-func buildPacket(prefix string) (*bytes.Buffer, error) {
+func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-	package %[1]s_packet
-
+	package %[1]s
+	`, pkgname)
+	fmt.Fprintf(&buf, `
 	type FlowType byte // packet flow type
 	
 	const (
@@ -824,13 +825,13 @@ func buildPacket(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildObjTemplate(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildObjTemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_obj
+		package %[1]s
 		/* protocol template 
-		`, prefix)
+		`, pkgname)
 
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
@@ -854,18 +855,18 @@ func buildObjTemplate(prefix string, cmddata, notidata [][]string) (*bytes.Buffe
 	return &buf, nil
 }
 
-func buildDemuxReq2API(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvReqFnMap(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_server
-		import (
-			"fmt"
-		)`, prefix)
+	package %[1]s
+	import (
+		"fmt"
+	)`, pkgname)
 
 	fmt.Fprintf(&buf, `
 		var DemuxReq2APIFnMap = [...]func(
-		c *ServeClientConn, hd %[1]s_packet.Header, robj interface{}) (
+		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
 		%[1]s_packet.Header, interface{}, error){
 		`, prefix)
 	for _, f := range cmddata {
@@ -876,13 +877,13 @@ func buildDemuxReq2API(prefix string, cmddata, notidata [][]string) (*bytes.Buff
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
 		func Req2API_%[2]s(
-			c *ServeClientConn, hd %[1]s_packet.Header, robj interface{}) (
+			me interface{}, hd %[1]s_packet.Header, robj interface{}) (
 			%[1]s_packet.Header, interface{},  error) {
 		req, ok := robj.(*%[1]s_obj.Req%[2]s_data)
 		if !ok {
 			return hd, nil, fmt.Errorf("Packet type miss match %%v", robj)
 		}
-		rhd, rsp, err := apifn_Req%[2]s(c, hd, req)
+		rhd, rsp, err := apifn_Req%[2]s(me, hd, req)
 		return rhd, rsp, err
 		}
 		`, prefix, f[0])
@@ -890,18 +891,18 @@ func buildDemuxReq2API(prefix string, cmddata, notidata [][]string) (*bytes.Buff
 	return &buf, nil
 }
 
-func buildAPITemplate(prefix string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildAPITemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_server
-		/* api template 
-		`, prefix)
+	package %[1]s
+	/* api template 
+	`, pkgname)
 
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
 		func apifn_Req%[2]s(
-			c2sc *ServeClientConn, hd %[1]s_packet.Header, robj *%[1]s_obj.Req%[2]s_data) (
+			me interface{}, hd %[1]s_packet.Header, robj *%[1]s_obj.Req%[2]s_data) (
 			%[1]s_packet.Header, *%[1]s_obj.Rsp%[2]s_data, error) {
 			rhd := %[1]s_packet.Header{
 				ErrorCode : %[1]s_error.None,
@@ -917,19 +918,19 @@ func buildAPITemplate(prefix string, cmddata, notidata [][]string) (*bytes.Buffe
 	return &buf, nil
 }
 
-func buildConnTCP(prefix string) (*bytes.Buffer, error) {
+func buildConnTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_conntcp
-		import (
-			"context"
-			"fmt"
-			"net"
-			"sync"
-			"time"
-		)
-		`, prefix)
+	package %[1]s
+	import (
+		"context"
+		"fmt"
+		"net"
+		"sync"
+		"time"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	type Connection struct {
 		conn         *net.TCPConn
@@ -1036,21 +1037,18 @@ func buildConnTCP(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildConnWasm(prefix string) (*bytes.Buffer, error) {
+func buildConnWasm(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_connwasm
-
-		import (
-			"context"
-			"fmt"
-			"sync"
-			"syscall/js"
-		)
-
-		`, prefix)
-
+	package %[1]s
+	import (
+		"context"
+		"fmt"
+		"sync"
+		"syscall/js"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	type Connection struct {
 		remoteAddr   string
@@ -1212,12 +1210,11 @@ func buildConnWasm(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildConnWSGorilla(prefix string) (*bytes.Buffer, error) {
+func buildConnWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-	package %[1]s_connwsgorilla
-
+	package %[1]s
 	import (
 		"context"
 		"fmt"
@@ -1225,8 +1222,7 @@ func buildConnWSGorilla(prefix string) (*bytes.Buffer, error) {
 		"sync"
 		"time"
 	)
-	`, prefix)
-
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	type Connection struct {
 		wsConn       *websocket.Conn
@@ -1334,23 +1330,19 @@ func buildConnWSGorilla(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildLoopWSGorilla(prefix string) (*bytes.Buffer, error) {
+func buildLoopWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_loopwsgorilla
-
-		import (
-			"context"
-			"fmt"
-			"net"
-			"time"
-		
-			"github.com/gorilla/websocket"
-		)
-
-		`, prefix)
-
+	package %[1]s
+	import (
+		"context"
+		"fmt"
+		"net"
+		"time"
+		"github.com/gorilla/websocket"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	func SendControl(
 		wsConn *websocket.Conn, mt int, PacketWriteTimeOut time.Duration) error {
@@ -1441,20 +1433,17 @@ func buildLoopWSGorilla(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildLoopTCP(prefix string) (*bytes.Buffer, error) {
+func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_looptcp
-
-		import (
-			"context"
-			"net"
-			"time"
-		)
-
-		`, prefix)
-
+	package %[1]s
+	import (
+		"context"
+		"net"
+		"time"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	func SendPacket(conn *net.TCPConn, buf []byte) error {
 		toWrite := len(buf)
@@ -1544,18 +1533,18 @@ func buildLoopTCP(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildStatNoti(prefix string) (*bytes.Buffer, error) {
+func buildStatNoti(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_statnoti
-		import (
-			"fmt"
-			"net/http"
-			"sync"
-			"text/template"
-		)
-		`, prefix)
+	package %[1]s
+	import (
+		"fmt"
+		"net/http"
+		"sync"
+		"text/template"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	func (ns *StatNotification) String() string {
 		return fmt.Sprintf("StatNotification[%%v]", len(ns))
@@ -1634,19 +1623,19 @@ func buildStatNoti(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildStatCallAPI(prefix string) (*bytes.Buffer, error) {
+func buildStatCallAPI(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_statcallapi
-		import (
-			"fmt"
-			"html/template"
-			"net/http"
-			"sync"
-			"time"
-		)
-		`, prefix)
+	package %[1]s
+	import (
+		"fmt"
+		"html/template"
+		"net/http"
+		"sync"
+		"time"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	func (cps *StatCallAPI) String() string {
 		return fmt.Sprintf("StatCallAPI[%%v]",
@@ -1837,20 +1826,19 @@ func buildStatCallAPI(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
+func buildStatServeAPI(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_statserveapi
-		import (
-			"fmt"
-			"net/http"
-			"sync"
-			"text/template"
-			"time"
-		)
-		`, prefix)
-
+	package %[1]s
+	import (
+		"fmt"
+		"net/http"
+		"sync"
+		"text/template"
+		"time"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	func (ps *StatServeAPI) String() string {
 		return fmt.Sprintf("StatServeAPI[%%v]", len(ps))
@@ -2055,19 +2043,18 @@ func buildStatServeAPI(prefix string) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func buildStatAPIError(prefix string) (*bytes.Buffer, error) {
+func buildStatAPIError(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
-		package %[1]s_statapierror
-		import (
-			"fmt"
-			"html/template"
-			"net/http"
-			"sync"
-		)
-		`, prefix)
-
+	package %[1]s
+	import (
+		"fmt"
+		"html/template"
+		"net/http"
+		"sync"
+	)
+	`, pkgname)
 	fmt.Fprintf(&buf, `
 	func (es *StatAPIError) String() string {
 		return fmt.Sprintf(

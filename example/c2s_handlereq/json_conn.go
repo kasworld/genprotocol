@@ -1,4 +1,4 @@
-package c2s_server
+package c2s_handlereq
 
 import (
 	"context"
