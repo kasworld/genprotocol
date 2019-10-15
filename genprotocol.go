@@ -546,12 +546,12 @@ func buildCallSendRecv(prefix string, pkgname string, cmddata, notidata [][]stri
 	package %[1]s
 	type C2SConnectI interface {
 		SendRecv(
-			cmd %[1]s_idcmd.CommandID, body interface{}) (
-			%[1]s_packet.Header, interface{}, error)
+			cmd %[2]s_idcmd.CommandID, body interface{}) (
+			%[2]s_packet.Header, interface{}, error)
 	
-		CheckAPI(hd %[1]s_packet.Header) error
+		CheckAPI(hd %[2]s_packet.Header) error
 	}
-	`, pkgname)
+	`, pkgname, prefix)
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
 			func Call_%[2]s(c2sc C2SConnectI,arg *%[1]s_obj.Req%[2]s_data) (*%[1]s_obj.Rsp%[2]s_data, error) {
