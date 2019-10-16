@@ -284,7 +284,7 @@ func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Bu
 	}
 	// implement error interface
 	func (e %[1]s) Error() string {
-		return fmt.Sprintf("%[2]s.%%s", e)
+		return "%[2]s." + e.String()
 	}
 	`, enumtype, pkgname)
 
