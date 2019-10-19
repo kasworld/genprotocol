@@ -141,14 +141,14 @@ func (c2sc *ServeClientConn) handleSentPacket(header c2s_packet.Header) error {
 }
 
 func (c2sc *ServeClientConn) HandleRecvPacket(header c2s_packet.Header, rbody []byte) error {
-	robj, err := c2s_json.UnmarshalPacket(header, rbody)
-	if err != nil {
-		return err
-	}
+	// robj, err := c2s_json.UnmarshalPacket(header, rbody)
+	// if err != nil {
+	// 	return err
+	// }
 	if header.FlowType != c2s_packet.Request {
 		return fmt.Errorf("Unexpected header packet type: %v", header)
 	}
-	if int(header.Cmd) >= len(DemuxReq2APIFnMap) {
+	if int(header.Cmd) >= len(DemuxReq2BytesAPIFnMap) {
 		return fmt.Errorf("Invalid header command %v", header)
 	}
 
@@ -167,7 +167,7 @@ func (c2sc *ServeClientConn) HandleRecvPacket(header c2s_packet.Header, rbody []
 		return fmt.Errorf("protocol stat obj nil %v, maybe pkid duplicate?", header.ID)
 	}
 	sObj.BeforeAPICall()
-	response, errcode, apierr := DemuxReq2APIFnMap[header.Cmd](c2sc, header, robj)
+	response, errcode, apierr := DemuxReq2BytesAPIFnMap[header.Cmd](c2sc, header, rbody)
 	c2sc.GetErrorStat().Inc(c2s_idcmd.CommandID(header.Cmd), response.ErrorCode)
 	sObj.AfterAPICall()
 

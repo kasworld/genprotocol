@@ -175,11 +175,11 @@ func main() {
 	buf, err = buildCallSendRecv(*prefix, *prefix+"_callsendrecv", cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_callsendrecv", "callsendrecv_gen.go"))
 
-	buf, err = buildRecvReqFnMap(*prefix, *prefix+"_handlereq", cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlereq", "recvreqobjfnmap_gen.go"))
+	buf, err = buildRecvReqFnObjTemplate(*prefix, *prefix+"_handlereq", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlereq", "fnobjtemplate_gen.go"))
 
-	buf, err = buildAPITemplate(*prefix, *prefix+"_handlereq", cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlereq", "apitemplate_gen.go"))
+	buf, err = buildRecvReqFnBytesAPITemplate(*prefix, *prefix+"_handlereq", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlereq", "fnbytestemplate_gen.go"))
 
 	buf, err = buildConnTCP(*prefix, *prefix+"_conntcp")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_conntcp", "conntcp_gen.go"))
@@ -855,62 +855,93 @@ func buildObjTemplate(prefix string, pkgname string, cmddata, notidata [][]strin
 	return &buf, nil
 }
 
-func buildRecvReqFnMap(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvReqFnObjTemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	import (
-		"fmt"
-	)`, pkgname)
+	/* obj base fn map api template 
+	`, pkgname)
 
 	fmt.Fprintf(&buf, `
-		var DemuxReq2APIFnMap = [...]func(
-		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
-		%[1]s_packet.Header, interface{}, error){
-		`, prefix)
+	var DemuxReq2ObjAPIFnMap = [...]func(
+	me interface{}, hd %[1]s_packet.Header, robj interface{}) (
+	%[1]s_packet.Header, interface{}, error){
+	`, prefix)
 	for _, f := range cmddata {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: Req2API_%[2]s,\n", prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: Req2ObjAPI_%[2]s,\n", prefix, f[0])
 	}
-	fmt.Fprintf(&buf, "\n}   // DemuxReq2APIFnMap\n")
+	fmt.Fprintf(&buf, "\n}   // DemuxReq2ObjAPIFnMap\n")
 
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
-		func Req2API_%[2]s(
-			me interface{}, hd %[1]s_packet.Header, robj interface{}) (
-			%[1]s_packet.Header, interface{},  error) {
+	func Req2ObjAPI_%[2]s(
+		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
+		%[1]s_packet.Header, interface{},  error) {
 		req, ok := robj.(*%[1]s_obj.Req%[2]s_data)
 		if !ok {
 			return hd, nil, fmt.Errorf("Packet type miss match %%v", robj)
 		}
-		rhd, rsp, err := apifn_Req%[2]s(me, hd, req)
+		rhd, rsp, err := objAPIFn_Req%[2]s(me, hd, req)
 		return rhd, rsp, err
+	}
+	func objAPIFn_Req%[2]s(
+		me interface{}, hd %[1]s_packet.Header, robj *%[1]s_obj.Req%[2]s_data) (
+		%[1]s_packet.Header, *%[1]s_obj.Rsp%[2]s_data, error) {
+		sendHeader := %[1]s_packet.Header{
+			ErrorCode : %[1]s_error.None,
 		}
+		sendBody := &%[1]s_obj.Rsp%[2]s_data{
+		}
+		return sendHeader, sendBody, nil
+	}
 		`, prefix, f[0])
 	}
+	fmt.Fprintf(&buf, `
+	*/`)
 	return &buf, nil
 }
 
-func buildAPITemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvReqFnBytesAPITemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	/* api template 
+	/* bytes base fn map api template , unmarshal in api
 	`, pkgname)
+
+	fmt.Fprintf(&buf, `
+	var DemuxReq2BytesAPIFnMap = [...]func(
+	me interface{}, hd %[1]s_packet.Header, rbody []byte) (
+	%[1]s_packet.Header, interface{}, error){
+	`, prefix)
+	for _, f := range cmddata {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: bytesAPIFn_Req%[2]s,\n", prefix, f[0])
+	}
+	fmt.Fprintf(&buf, "\n}   // DemuxReq2BytesAPIFnMap\n")
 
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
-		func apifn_Req%[2]s(
-			me interface{}, hd %[1]s_packet.Header, robj *%[1]s_obj.Req%[2]s_data) (
-			%[1]s_packet.Header, *%[1]s_obj.Rsp%[2]s_data, error) {
-			rhd := %[1]s_packet.Header{
-				ErrorCode : %[1]s_error.None,
-			}
-			spacket := &%[1]s_obj.Rsp%[2]s_data{
-			}
-			return rhd, spacket, nil
+	func bytesAPIFn_Req%[2]s(
+		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
+		%[1]s_packet.Header, interface{}, error) {
+		// robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
+		// if err != nil {
+		// 	return hd, nil, fmt.Errorf("Packet type miss match %%v", rbody)
+		// }
+		// recvBody, ok := robj.(*%[1]s_obj.Req%[2]s_data)
+		// if !ok {
+		// 	return hd, nil, fmt.Errorf("Packet type miss match %%v", robj)
+		// }
+		// _ = recvBody
+		
+		sendHeader := %[1]s_packet.Header{
+			ErrorCode : %[1]s_error.None,
 		}
+		sendBody := &%[1]s_obj.Rsp%[2]s_data{
+		}
+		return sendHeader, sendBody, nil
+	}
 		`, prefix, f[0])
 	}
 	fmt.Fprintf(&buf, `

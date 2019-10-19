@@ -1,4 +1,4 @@
-genprotocol -ver=1.0 -prefix=c2s -basedir example
+go run genprotocol.go -ver=1.0 -prefix=c2s -basedir example
 
 goimports -w example/c2s_version/version_gen.go
 goimports -w example/c2s_idcmd/command_gen.go
