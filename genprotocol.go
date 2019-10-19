@@ -166,11 +166,17 @@ func main() {
 	buf, err = buildJSON(*prefix, *prefix+"_json", cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_json", "serialize_gen.go"))
 
-	buf, err = buildRecvRspFnMap(*prefix, *prefix+"_handlersp", cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlersp", "recvrspobjfnmap_gen.go"))
+	buf, err = buildRecvRspFnObjTemplate(*prefix, *prefix+"_handlersp", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlersp", "fnobjtemplate_gen.go"))
 
-	buf, err = buildRecvNotiFnMap(*prefix, *prefix+"_handlenoti", cmddata, notidata)
-	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlenoti", "recvnotiobjfnmap_gen.go"))
+	buf, err = buildRecvRspFnBytesTemplate(*prefix, *prefix+"_handlersp", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlersp", "fnbytestemplate_gen.go"))
+
+	buf, err = buildRecvNotiFnObjTemplate(*prefix, *prefix+"_handlenoti", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlenoti", "fnobjtemplate_gen.go"))
+
+	buf, err = buildRecvNotiFnBytesTemplate(*prefix, *prefix+"_handlenoti", cmddata, notidata)
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_handlenoti", "fnbytestemplate_gen.go"))
 
 	buf, err = buildCallSendRecv(*prefix, *prefix+"_callsendrecv", cmddata, notidata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_callsendrecv", "callsendrecv_gen.go"))
@@ -477,65 +483,133 @@ func buildJSON(prefix string, pkgname string, cmddata, notidata [][]string) (*by
 	return &buf, nil
 }
 
-func buildRecvRspFnMap(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvRspFnObjTemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	import (
-		"fmt"
-	)
+	/* obj base demux fn map template 
 	`, pkgname)
-
 	fmt.Fprintf(&buf,
-		"\nvar RecvRspObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
+		"\nvar DemuxRsp2ObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
 		prefix)
 	for _, f := range cmddata {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : defaultRecvObjFn_%[2]s,\n", prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : objRecvRspFn_%[2]s,\n", prefix, f[0])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
-			func defaultRecvObjFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
-				robj , ok := body.(*%[1]s_obj.Rsp%[2]s_data)
-				if !ok {
-					return fmt.Errorf("packet mismatch %%v", body )
-				}
-				return fmt.Errorf("Not implemented %%v", robj)
-			}
-			`, prefix, f[0])
+	func objRecvRspFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
+		robj , ok := body.(*%[1]s_obj.Rsp%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", body )
+		}
+		return fmt.Errorf("Not implemented %%v", robj)
 	}
+	`, prefix, f[0])
+	}
+	fmt.Fprintf(&buf, `
+	*/`)
 	return &buf, nil
 }
 
-func buildRecvNotiFnMap(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+func buildRecvRspFnBytesTemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	import (
-		"fmt"
-	)
+	/* bytes base demux fn map template 
+	`, pkgname)
+	fmt.Fprintf(&buf,
+		"\nvar DemuxRsp2BytesFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {\n",
+		prefix)
+	for _, f := range cmddata {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : bytesRecvRspFn_%[2]s,\n", prefix, f[0])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	for _, f := range cmddata {
+		fmt.Fprintf(&buf, `
+	func bytesRecvRspFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
+		robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
+		if err != nil {
+			return  fmt.Errorf("Packet type miss match %%v", rbody)
+		}
+		recved , ok := robj.(*%[1]s_obj.Rsp%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", robj )
+		}
+		return fmt.Errorf("Not implemented %%v", recved)
+	}
+	`, prefix, f[0])
+	}
+	fmt.Fprintf(&buf, `
+	*/`)
+	return &buf, nil
+}
+
+func buildRecvNotiFnObjTemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	/* obj base demux fn map template 
 	`, pkgname)
 
 	fmt.Fprintf(&buf,
-		"\nvar RecvNotiObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
+		"\nvar DemuxNoti2ObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
 		prefix)
 	for _, f := range notidata {
-		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : defaultRecvObjNotiFn_%[2]s,\n", prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : objRecvNotiFn_%[2]s,\n", prefix, f[0])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
 	for _, f := range notidata {
 		fmt.Fprintf(&buf, `
-			func defaultRecvObjNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
-				robj , ok := body.(*%[1]s_obj.Noti%[2]s_data)
-				if !ok {
-					return fmt.Errorf("packet mismatch %%v", body )
-				}
-				return fmt.Errorf("Not implemented %%v", robj)
-			}
-			`, prefix, f[0])
+	func objRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
+		robj , ok := body.(*%[1]s_obj.Noti%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", body )
+		}
+		return fmt.Errorf("Not implemented %%v", robj)
 	}
+	`, prefix, f[0])
+	}
+	fmt.Fprintf(&buf, `
+	*/`)
+	return &buf, nil
+}
+
+func buildRecvNotiFnBytesTemplate(prefix string, pkgname string, cmddata, notidata [][]string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	/* bytes base demux fn map template 
+	`, pkgname)
+
+	fmt.Fprintf(&buf,
+		"\nvar DemuxNoti2ByteFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {\n",
+		prefix)
+	for _, f := range notidata {
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : bytesRecvNotiFn_%[2]s,\n", prefix, f[0])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	for _, f := range notidata {
+		fmt.Fprintf(&buf, `
+	func bytesRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
+		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
+		if err != nil {
+			return fmt.Errorf("Packet type miss match %%v", rbody)
+		}
+		recved , ok := robj.(*%[1]s_obj.Noti%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", robj )
+		}
+		return fmt.Errorf("Not implemented %%v", recved)
+	}
+	`, prefix, f[0])
+	}
+	fmt.Fprintf(&buf, `
+	*/`)
 	return &buf, nil
 }
 
@@ -554,18 +628,18 @@ func buildCallSendRecv(prefix string, pkgname string, cmddata, notidata [][]stri
 	`, pkgname, prefix)
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, `
-			func Call_%[2]s(c2sc C2SConnectI,arg *%[1]s_obj.Req%[2]s_data) (*%[1]s_obj.Rsp%[2]s_data, error) {
+			func Call_%[2]s(%[1]sc C2SConnectI,arg *%[1]s_obj.Req%[2]s_data) (*%[1]s_obj.Rsp%[2]s_data, error) {
 				if arg == nil {
 					arg = &%[1]s_obj.Req%[2]s_data{}
 				}
-				hd, rsp, err := c2sc.SendRecv(
+				hd, rsp, err := %[1]sc.SendRecv(
 					%[1]s_idcmd.%[2]s,
 					arg)
 				if err != nil {
 					return nil, err
 				}
 				robj := rsp.(*%[1]s_obj.Rsp%[2]s_data)
-				return robj, c2sc.CheckAPI(hd)
+				return robj, %[1]sc.CheckAPI(hd)
 			}
 			`, prefix, f[0])
 	}
@@ -860,7 +934,7 @@ func buildRecvReqFnObjTemplate(prefix string, pkgname string, cmddata, notidata 
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	/* obj base fn map api template 
+	/* obj base demux fn map template 
 	`, pkgname)
 
 	fmt.Fprintf(&buf, `
