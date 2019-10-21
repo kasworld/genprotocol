@@ -1610,6 +1610,8 @@ func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
+	var bufPool = c2t_packet.NewPool(100)
+
 	func SendPacket(conn *net.TCPConn, buf []byte) error {
 		toWrite := len(buf)
 		for l := 0; l < toWrite; {
