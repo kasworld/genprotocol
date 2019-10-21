@@ -880,8 +880,11 @@ func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 	// marshalBodyFn append marshaled(+compress) body to buffer and return total buffer, bodyType, error
 	// set Packet.Header.bodyLen, Packet.Header.bodyType
 	// return bytelist, error
-	func Packet2Bytes(pk *Packet, marshalBodyFn func(interface{}, []byte) ([]byte, byte, error)) ([]byte, error) {
-		newbuf, bodytype, err := marshalBodyFn(pk.Body, make([]byte, HeaderLen, MaxPacketLen))
+	func Packet2Bytes(pk *Packet,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		oldbuf []byte,
+	) ([]byte, error) {
+		newbuf, bodytype, err := marshalBodyFn(pk.Body, oldbuf)
 		if err != nil {
 			return nil, err
 		}
@@ -895,7 +898,50 @@ func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 		pk.Header.toBytesAt(newbuf)
 		return newbuf, nil
 	}
-	`, prefix)
+	
+	///////////////////////////////////////////////////////////////////////////////
+	type Buffer []byte
+	
+	type Pool struct {
+		mutex    sync.Mutex
+		buffPool []Buffer
+		count    int
+	}
+	
+	func NewPool(count int) *Pool {
+		return &Pool{
+			buffPool: make([]Buffer, 0, count),
+			count:    count,
+		}
+	}
+	
+	func (p *Pool) String() string {
+		return fmt.Sprintf("PacketPool[%%v %%v/%%v]",
+			len(p.buffPool), p.count,
+		)
+	}
+	
+	func (p *Pool) Get() Buffer {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		var rtn Buffer
+		if l := len(p.buffPool); l > 0 {
+			rtn = p.buffPool[l-1]
+			p.buffPool = p.buffPool[:l-1]
+		} else {
+			rtn = make(Buffer, HeaderLen, MaxPacketLen)
+		}
+		return rtn
+	}
+	
+	func (p *Pool) Put(pb Buffer) {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		if len(p.buffPool) < p.count {
+			p.buffPool = append(p.buffPool, pb[:HeaderLen])
+		}
+	}
+		`, prefix)
 	return &buf, nil
 }
 
@@ -1155,6 +1201,8 @@ func buildConnWasm(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
+	var bufPool = %[1]s_packet.NewPool(100)
+
 	type Connection struct {
 		remoteAddr   string
 		conn         js.Value
@@ -1233,23 +1281,27 @@ func buildConnWasm(prefix string, pkgname string) (*bytes.Buffer, error) {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-wsc.sendCh:
-				var sendBuffer []byte
-				sendBuffer, err = %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn)
+				oldbuf := bufPool.Get()
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf)
 				if err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = wsc.sendPacket(sendBuffer); err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = wsc.handleSentPacketFn(pk.Header); err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
+				bufPool.Put(oldbuf)
 			}
 		}
-		JsLogErrorf("end SendLoop %%v\n", err)
+		JsLogErrorf("end SendLoop %v\n", err)
 		return
 	}
-	
+		
 	func (wsc *Connection) sendPacket(sendBuffer []byte) error {
 		sendData := js.Global().Get("Uint8Array").New(len(sendBuffer))
 		js.CopyBytesToJS(sendData, sendBuffer)
@@ -1449,6 +1501,9 @@ func buildLoopWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
+
+	var bufPool = %[1]s_packet.NewPool(100)
+
 	func SendControl(
 		wsConn *websocket.Conn, mt int, PacketWriteTimeOut time.Duration) error {
 	
@@ -1465,7 +1520,7 @@ func buildLoopWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
 		handleSentPacketFn func(header %[1]s_packet.Header) error,
 	) error {
-	
+
 		defer SendRecvStop()
 		var err error
 	loop:
@@ -1478,16 +1533,21 @@ func buildLoopWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 				if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 					break loop
 				}
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn)
+				oldbuf := bufPool.Get()
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
 				if err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = SendPacket(wsConn, sendBuffer); err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = handleSentPacketFn(pk.Header); err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
+				bufPool.Put(oldbuf)
 			}
 		}
 		return err
@@ -1568,7 +1628,7 @@ func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
 		handleSentPacketFn func(header %[1]s_packet.Header) error,
 	) error {
-	
+
 		defer SendRecvStop()
 		var err error
 	loop:
@@ -1580,16 +1640,21 @@ func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 				if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn)
+				oldbuf := bufPool.Get()
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
 				if err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = SendPacket(tcpConn, sendBuffer); err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = handleSentPacketFn(pk.Header); err != nil {
+					bufPool.Put(oldbuf)
 					break loop
 				}
+				bufPool.Put(oldbuf)
 			}
 		}
 		return err
