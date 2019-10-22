@@ -596,7 +596,7 @@ func buildRecvNotiFnBytesTemplate(prefix string, pkgname string, cmddata, notida
 	for _, f := range notidata {
 		fmt.Fprintf(&buf, `
 	func bytesRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
-		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
+		robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
 			return fmt.Errorf("Packet type miss match %%v", rbody)
 		}
