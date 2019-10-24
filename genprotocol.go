@@ -1409,7 +1409,7 @@ func buildConnWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 		}
 	
 		tc.sendRecvStop = func() {
-			panic("Too early sendRecvStop call")
+			fmt.Printf("Too early sendRecvStop call")
 		}
 		return tc
 	}
