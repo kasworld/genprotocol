@@ -24,15 +24,16 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
+	"github.com/kasworld/genprotocol/example/c2s_statapierror"
+	"github.com/kasworld/genprotocol/example/c2s_statcallapi"
+	"github.com/kasworld/genprotocol/example/c2s_statnoti"
 )
 
 // service const
 const (
-	SendBufferSize = 10
-
 	// for client
-	PacketReadTimeoutSec  = 6 * time.Second
-	PacketWriteTimeoutSec = 3 * time.Second
+	ReadTimeoutSec  = 6 * time.Second
+	WriteTimeoutSec = 3 * time.Second
 )
 
 func main() {
@@ -40,26 +41,50 @@ func main() {
 	flag.Parse()
 	fmt.Printf("addr %v \n", *addr)
 
-	app := new(App)
+	app := NewApp(*addr)
+	app.Run()
+}
+
+type App struct {
+	pid      uint32
+	addr     string
+	c2sc     *c2s_connwsgorilla.Connection
+	DoClose  func()
+	apistat  *c2s_statcallapi.StatCallAPI
+	notistat *c2s_statnoti.StatNotification
+	errstat  *c2s_statapierror.StatAPIError
+}
+
+func NewApp(addr string) *App {
+	app := &App{
+		addr:     addr,
+		apistat:  c2s_statcallapi.New(),
+		notistat: c2s_statnoti.New(),
+		errstat:  c2s_statapierror.New(),
+	}
+	app.DoClose = func() {
+		fmt.Printf("Too early DoClose call\n")
+	}
+	return app
+}
+
+func (app *App) Run() {
 	app.c2sc = c2s_connwsgorilla.New(
-		PacketReadTimeoutSec, PacketWriteTimeoutSec,
+		ReadTimeoutSec, WriteTimeoutSec,
 		c2s_json.MarshalBodyFn,
 		app.HandleRecvPacket,
 		app.handleSentPacket,
 	)
-	if err := app.c2sc.ConnectTo(*addr); err != nil {
+	if err := app.c2sc.ConnectTo(app.addr); err != nil {
 		fmt.Printf("%v\n", err)
 		return
 	}
 	app.c2sc.EnqueueSendPacket(app.makePacket())
 	app.c2sc.EnqueueSendPacket(app.makePacket())
-	ctx := context.Background()
+	ctx, closeCtx := context.WithCancel(context.Background())
+	app.DoClose = closeCtx
+	defer app.DoClose()
 	app.c2sc.Run(ctx)
-}
-
-type App struct {
-	pid  uint32
-	c2sc *c2s_connwsgorilla.Connection
 }
 
 func (app *App) handleSentPacket(header c2s_packet.Header) error {
@@ -67,13 +92,20 @@ func (app *App) handleSentPacket(header c2s_packet.Header) error {
 }
 
 func (app *App) HandleRecvPacket(header c2s_packet.Header, body []byte) error {
-	robj, err := c2s_json.UnmarshalPacket(header, body)
-	_ = robj
-	// fmt.Println(header, robj, err)
-	if err == nil {
+	// robj, err := c2s_json.UnmarshalPacket(header, body)
+
+	switch header.FlowType {
+	default:
+		return fmt.Errorf("Invalid packet type %v %v", header, body)
+	case c2s_packet.Response:
+		app.errstat.Inc(c2s_idcmd.CommandID(header.Cmd), header.ErrorCode)
+
 		app.c2sc.EnqueueSendPacket(app.makePacket())
+
+	case c2s_packet.Notification:
+		app.notistat.Add(header)
 	}
-	return err
+	return nil
 }
 
 func (app *App) makePacket() c2s_packet.Packet {
