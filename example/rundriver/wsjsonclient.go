@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/kasworld/genprotocol/example/c2s_connwsgorilla"
+	"github.com/kasworld/genprotocol/example/c2s_error"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
@@ -32,8 +33,8 @@ import (
 // service const
 const (
 	// for client
-	ReadTimeoutSec  = 6 * time.Second
-	WriteTimeoutSec = 3 * time.Second
+	readTimeoutSec  = 6 * time.Second
+	writeTimeoutSec = 3 * time.Second
 )
 
 func main() {
@@ -42,68 +43,102 @@ func main() {
 	fmt.Printf("addr %v \n", *addr)
 
 	app := NewApp(*addr)
+	app.sendTestPacket()
+	app.sendTestPacket()
 	app.Run()
 }
 
 type App struct {
-	pid      uint32
-	addr     string
-	c2sc     *c2s_connwsgorilla.Connection
-	DoClose  func()
-	apistat  *c2s_statcallapi.StatCallAPI
-	notistat *c2s_statnoti.StatNotification
-	errstat  *c2s_statapierror.StatAPIError
+	pid          uint32
+	addr         string
+	c2sc         *c2s_connwsgorilla.Connection
+	sendRecvStop func()
+	apistat      *c2s_statcallapi.StatCallAPI
+	pid2statobj  *c2s_statcallapi.PacketID2StatObj
+	notistat     *c2s_statnoti.StatNotification
+	errstat      *c2s_statapierror.StatAPIError
 }
 
 func NewApp(addr string) *App {
 	app := &App{
-		addr:     addr,
-		apistat:  c2s_statcallapi.New(),
-		notistat: c2s_statnoti.New(),
-		errstat:  c2s_statapierror.New(),
+		addr:        addr,
+		apistat:     c2s_statcallapi.New(),
+		pid2statobj: c2s_statcallapi.NewPacketID2StatObj(),
+		notistat:    c2s_statnoti.New(),
+		errstat:     c2s_statapierror.New(),
 	}
-	app.DoClose = func() {
-		fmt.Printf("Too early DoClose call\n")
+	app.sendRecvStop = func() {
+		fmt.Printf("Too early sendRecvStop call\n")
 	}
+	app.c2sc = c2s_connwsgorilla.New(
+		readTimeoutSec, writeTimeoutSec,
+		c2s_json.MarshalBodyFn,
+		app.handleRecvPacket,
+		app.handleSentPacket,
+	)
 	return app
 }
 
 func (app *App) Run() {
-	app.c2sc = c2s_connwsgorilla.New(
-		ReadTimeoutSec, WriteTimeoutSec,
-		c2s_json.MarshalBodyFn,
-		app.HandleRecvPacket,
-		app.handleSentPacket,
-	)
 	if err := app.c2sc.ConnectTo(app.addr); err != nil {
 		fmt.Printf("%v\n", err)
 		return
 	}
-	app.c2sc.EnqueueSendPacket(app.makePacket())
-	app.c2sc.EnqueueSendPacket(app.makePacket())
-	ctx, closeCtx := context.WithCancel(context.Background())
-	app.DoClose = closeCtx
-	defer app.DoClose()
+	ctx, stopFn := context.WithCancel(context.Background())
+	app.sendRecvStop = stopFn
+	defer app.sendRecvStop()
 	app.c2sc.Run(ctx)
 }
 
 func (app *App) handleSentPacket(header c2s_packet.Header) error {
+	if err := app.apistat.AfterSendReq(header); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (app *App) HandleRecvPacket(header c2s_packet.Header, body []byte) error {
-	// robj, err := c2s_json.UnmarshalPacket(header, body)
-
+func (app *App) handleRecvPacket(header c2s_packet.Header, body []byte) error {
 	switch header.FlowType {
 	default:
 		return fmt.Errorf("Invalid packet type %v %v", header, body)
-	case c2s_packet.Response:
-		app.errstat.Inc(c2s_idcmd.CommandID(header.Cmd), header.ErrorCode)
-
-		app.c2sc.EnqueueSendPacket(app.makePacket())
-
 	case c2s_packet.Notification:
 		app.notistat.Add(header)
+		//process noti here
+		// robj, err := c2s_json.UnmarshalPacket(header, body)
+
+	case c2s_packet.Response:
+		app.errstat.Inc(c2s_idcmd.CommandID(header.Cmd), header.ErrorCode)
+		if err := app.apistat.AfterRecvRsp(header); err != nil {
+			fmt.Printf("%v %v\n", app, err)
+			return err
+		}
+		psobj := app.pid2statobj.Get(header.ID)
+		if psobj == nil {
+			return fmt.Errorf("no statobj for %v", header.ID)
+		}
+		psobj.CallServerEnd(header.ErrorCode == c2s_error.None)
+		app.pid2statobj.Del(header.ID)
+
+		// handle response here
+		// robj, err := c2s_json.UnmarshalPacket(header, body)
+		if err := app.sendTestPacket(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (app *App) sendTestPacket() error {
+	spk := app.makePacket()
+	psobj, err := app.apistat.BeforeSendReq(spk.Header)
+	if err != nil {
+		return nil
+	}
+	app.pid2statobj.Add(spk.Header.ID, psobj)
+	if err := app.c2sc.EnqueueSendPacket(spk); err != nil {
+		fmt.Printf("End %v %v %v\n", app, spk, err)
+		app.sendRecvStop()
+		return fmt.Errorf("Send fail %v %v", app, err)
 	}
 	return nil
 }
@@ -116,7 +151,6 @@ func (app *App) makePacket() c2s_packet.Packet {
 		FlowType: c2s_packet.Request,
 	}
 	app.pid++
-
 	return c2s_packet.Packet{
 		Header: hd,
 		Body:   body,
