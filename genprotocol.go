@@ -1739,7 +1739,7 @@ func buildPID2RspFn(prefix string, pkgname string) (*bytes.Buffer, error) {
 		p2r.pid2recvfn[p2r.pid] = fn
 		return p2r.pid
 	}
-	func (p2r *PID2RspFn) HandleRsp(header %[1]s_packet.Header, body []byte) error {
+	func (p2r *PID2RspFn) HandleRsp(header %[1]s_packet.Header, body interface{}) error {
 		p2r.mutex.Lock()
 		if recvfn, exist := p2r.pid2recvfn[header.ID]; exist {
 			delete(p2r.pid2recvfn, header.ID)
