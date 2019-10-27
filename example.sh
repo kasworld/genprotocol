@@ -20,6 +20,7 @@ goimports -w example/c2s_connwasm/connwasm_gen.go
 goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
 goimports -w example/c2s_loopwsgorilla/loopwsgorilla_gen.go
 goimports -w example/c2s_looptcp/looptcp_gen.go
+goimports -w example/c2s_pid2rspfn/pid2rspfn_gen.go
 goimports -w example/c2s_statnoti/statnoti_gen.go
 goimports -w example/c2s_statcallapi/statcallapi_gen.go
 goimports -w example/c2s_statserveapi/statserveapi_gen.go

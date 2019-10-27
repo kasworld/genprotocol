@@ -59,20 +59,24 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_obj/objtemplate_gen.go
 	goimports -w example/c2s_msgp/serialize_gen.go
 	goimports -w example/c2s_json/serialize_gen.go
-	goimports -w example/c2s_handlersp/recvrspobjfnmap_gen.go
-	goimports -w example/c2s_handlenoti/recvnotiobjfnmap_gen.go
+	goimports -w example/c2s_handlersp/fnobjtemplate_gen.go
+	goimports -w example/c2s_handlersp/fnbytestemplate_gen.go
+	goimports -w example/c2s_handlenoti/fnobjtemplate_gen.go
+	goimports -w example/c2s_handlenoti/fnbytestemplate_gen.go
 	goimports -w example/c2s_callsendrecv/callsendrecv_gen.go
-	goimports -w example/c2s_handlereq/recvreqobjfnmap_gen.go
-	goimports -w example/c2s_handlereq/apitemplate_gen.go
+	goimports -w example/c2s_handlereq/fnobjtemplate_gen.go
+	goimports -w example/c2s_handlereq/fnbytestemplate_gen.go
 	goimports -w example/c2s_conntcp/conntcp_gen.go
 	goimports -w example/c2s_connwasm/connwasm_gen.go
 	goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
 	goimports -w example/c2s_loopwsgorilla/loopwsgorilla_gen.go
 	goimports -w example/c2s_looptcp/looptcp_gen.go
+	goimports -w example/c2s_pid2rspfn/pid2rspfn_gen.go
 	goimports -w example/c2s_statnoti/statnoti_gen.go
 	goimports -w example/c2s_statcallapi/statcallapi_gen.go
 	goimports -w example/c2s_statserveapi/statserveapi_gen.go
 	goimports -w example/c2s_statapierror/statapierror_gen.go
+
 
 prefix_gendata : genprotocol에서 읽어 들이는 파일들 
 
@@ -170,6 +174,11 @@ prefix_callsendrecv : blocked send/recv : response 를 받을때 까지 wait
 
 	생성하는 파일 
 	callsendrecv_gen.go      
+
+prefix_pid2rspfn : callback 형태로 request/response를 처리하기위한 lib(client example참조)
+
+	생성하는 파일 
+	pid2rspfn_gen.go      
 
 prefix_statnoti : notification protocol 통계 
 

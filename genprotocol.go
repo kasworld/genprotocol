@@ -113,6 +113,7 @@ func main() {
 		"_connwsgorilla",
 		"_loopwsgorilla",
 		"_looptcp",
+		"_pid2rspfn",
 		"_statnoti",
 		"_statcallapi",
 		"_statserveapi",
@@ -201,6 +202,9 @@ func main() {
 
 	buf, err = buildLoopTCP(*prefix, *prefix+"_looptcp")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_looptcp", "looptcp_gen.go"))
+
+	buf, err = buildPID2RspFn(*prefix, *prefix+"_pid2rspfn")
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_pid2rspfn", "pid2rspfn_gen.go"))
 
 	buf, err = buildStatNoti(*prefix, *prefix+"_statnoti")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statnoti", "statnoti_gen.go"))
@@ -1610,7 +1614,7 @@ func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
-	var bufPool = c2t_packet.NewPool(100)
+	var bufPool = %[1]s_packet.NewPool(100)
 
 	func SendPacket(conn *net.TCPConn, buf []byte) error {
 		toWrite := len(buf)
@@ -1700,6 +1704,50 @@ func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 			}
 		}
 		return err
+	}
+	`, prefix)
+	return &buf, nil
+}
+
+func buildPID2RspFn(prefix string, pkgname string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	import (
+		"fmt"
+		"sync"
+	)
+	`, pkgname)
+	fmt.Fprintf(&buf, `
+	type HandleRspFn func(%[1]s_packet.Header, interface{}) error
+	type PID2RspFn struct {
+		mutex      sync.Mutex
+		pid2recvfn map[uint32]HandleRspFn
+		pid        uint32
+	}
+	func New() *PID2RspFn {
+		rtn := &PID2RspFn{
+			pid2recvfn: make(map[uint32]HandleRspFn),
+		}
+		return rtn
+	}
+	func (p2r *PID2RspFn) NewPID(fn HandleRspFn) uint32 {
+		p2r.mutex.Lock()
+		defer p2r.mutex.Unlock()
+		p2r.pid++
+		p2r.pid2recvfn[p2r.pid] = fn
+		return p2r.pid
+	}
+	func (p2r *PID2RspFn) HandleRsp(header %[1]s_packet.Header, body []byte) error {
+		p2r.mutex.Lock()
+		if recvfn, exist := p2r.pid2recvfn[header.ID]; exist {
+			delete(p2r.pid2recvfn, header.ID)
+			p2r.mutex.Unlock()
+			return recvfn(header, body)
+		}
+		p2r.mutex.Unlock()
+		return fmt.Errorf("pid not found")
 	}
 	`, prefix)
 	return &buf, nil

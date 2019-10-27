@@ -25,6 +25,7 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
+	"github.com/kasworld/genprotocol/example/c2s_pid2rspfn"
 	"github.com/kasworld/genprotocol/example/c2s_statapierror"
 	"github.com/kasworld/genprotocol/example/c2s_statcallapi"
 	"github.com/kasworld/genprotocol/example/c2s_statnoti"
@@ -49,7 +50,6 @@ func main() {
 }
 
 type App struct {
-	pid          uint32
 	addr         string
 	c2sc         *c2s_connwsgorilla.Connection
 	sendRecvStop func()
@@ -57,6 +57,7 @@ type App struct {
 	pid2statobj  *c2s_statcallapi.PacketID2StatObj
 	notistat     *c2s_statnoti.StatNotification
 	errstat      *c2s_statapierror.StatAPIError
+	pid2recv     *c2s_pid2rspfn.PID2RspFn
 }
 
 func NewApp(addr string) *App {
@@ -66,6 +67,7 @@ func NewApp(addr string) *App {
 		pid2statobj: c2s_statcallapi.NewPacketID2StatObj(),
 		notistat:    c2s_statnoti.New(),
 		errstat:     c2s_statapierror.New(),
+		pid2recv:    c2s_pid2rspfn.New(),
 	}
 	app.sendRecvStop = func() {
 		fmt.Printf("Too early sendRecvStop call\n")
@@ -102,12 +104,15 @@ func (app *App) handleRecvPacket(header c2s_packet.Header, body []byte) error {
 	default:
 		return fmt.Errorf("Invalid packet type %v %v", header, body)
 	case c2s_packet.Notification:
+		// noti stat
 		app.notistat.Add(header)
 		//process noti here
 		// robj, err := c2s_json.UnmarshalPacket(header, body)
 
 	case c2s_packet.Response:
+		// error stat
 		app.errstat.Inc(c2s_idcmd.CommandID(header.Cmd), header.ErrorCode)
+		// api stat
 		if err := app.apistat.AfterRecvRsp(header); err != nil {
 			fmt.Printf("%v %v\n", app, err)
 			return err
@@ -119,40 +124,53 @@ func (app *App) handleRecvPacket(header c2s_packet.Header, body []byte) error {
 		psobj.CallServerEnd(header.ErrorCode == c2s_error.None)
 		app.pid2statobj.Del(header.ID)
 
-		// handle response here
-		// robj, err := c2s_json.UnmarshalPacket(header, body)
-		if err := app.sendTestPacket(); err != nil {
+		// process response
+		if err := app.pid2recv.HandleRsp(header, body); err != nil {
 			return err
 		}
+
+		// send new test packet
+		go app.sendTestPacket()
 	}
 	return nil
 }
 
 func (app *App) sendTestPacket() error {
-	spk := app.makePacket()
+	return app.ReqWithRspFn(
+		c2s_idcmd.Heartbeat,
+		c2s_obj.ReqHeartbeat_data{},
+		func(hd c2s_packet.Header, rsp interface{}) error {
+			// response here
+			// robj, err := c2s_json.UnmarshalPacket(header, body)
+			return nil
+		},
+	)
+}
+
+func (app *App) ReqWithRspFn(cmd c2s_idcmd.CommandID, body interface{},
+	fn c2s_pid2rspfn.HandleRspFn) error {
+
+	pid := app.pid2recv.NewPID(fn)
+	spk := c2s_packet.Packet{
+		Header: c2s_packet.Header{
+			Cmd:      uint16(cmd),
+			ID:       pid,
+			FlowType: c2s_packet.Request,
+		},
+		Body: body,
+	}
+
+	// add api stat
 	psobj, err := app.apistat.BeforeSendReq(spk.Header)
 	if err != nil {
 		return nil
 	}
 	app.pid2statobj.Add(spk.Header.ID, psobj)
+
 	if err := app.c2sc.EnqueueSendPacket(spk); err != nil {
 		fmt.Printf("End %v %v %v\n", app, spk, err)
 		app.sendRecvStop()
 		return fmt.Errorf("Send fail %v %v", app, err)
 	}
 	return nil
-}
-
-func (app *App) makePacket() c2s_packet.Packet {
-	body := c2s_obj.ReqHeartbeat_data{}
-	hd := c2s_packet.Header{
-		Cmd:      uint16(c2s_idcmd.Heartbeat),
-		ID:       app.pid,
-		FlowType: c2s_packet.Request,
-	}
-	app.pid++
-	return c2s_packet.Packet{
-		Header: hd,
-		Body:   body,
-	}
 }
