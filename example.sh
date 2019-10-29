@@ -26,3 +26,12 @@ goimports -w example/c2s_statnoti/statnoti_gen.go
 goimports -w example/c2s_statcallapi/statcallapi_gen.go
 goimports -w example/c2s_statserveapi/statserveapi_gen.go
 goimports -w example/c2s_statapierror/statapierror_gen.go
+
+cd example/rundriver 
+
+echo "build wasm client"
+GOOS=js GOARCH=wasm go build -o www/wasmclient.wasm wasmclient.go
+
+# echo "build go client"
+# go build -o bin/goclient goclient.go
+

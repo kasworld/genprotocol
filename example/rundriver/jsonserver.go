@@ -18,8 +18,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_serveconnbyte"
 
@@ -27,12 +29,52 @@ import (
 )
 
 func main() {
-	port := flag.String("port", ":8080", "Serve port")
+	httpport := flag.String("httpport", ":8080", "Serve httpport")
+	httpfolder := flag.String("httpdir", "www", "Serve http Dir")
+	tcpport := flag.String("tcpport", ":8081", "Serve tcpport")
 	flag.Parse()
 
 	ctx := context.Background()
+	go serveTCP(ctx, *tcpport)
+	serveHTTP(ctx, *httpport, *httpfolder)
+}
 
-	tcpaddr, err := net.ResolveTCPAddr("tcp", *port)
+func serveHTTP(ctx context.Context, port string, folder string) {
+	fmt.Printf("http server dir=%v port=%v , http://localhost%v/\n",
+		folder, port, port)
+	webMux := http.NewServeMux()
+	webMux.Handle("/",
+		http.FileServer(http.Dir(folder)),
+	)
+	webMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWebSocketClient(ctx, w, r)
+	})
+	if err := http.ListenAndServe(port, webMux); err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func CheckOrigin(r *http.Request) bool {
+	return true
+}
+
+func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		CheckOrigin: CheckOrigin,
+	}
+	wsConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Printf("upgrade %v\n", err)
+		return
+	}
+	c2sc := c2s_serveconnbyte.New(c2s_json.MarshalBodyFn, c2s_handlereq.DemuxReq2BytesAPIFnMap)
+	c2sc.StartServeWS(ctx, wsConn)
+	wsConn.Close()
+}
+
+func serveTCP(ctx context.Context, port string) {
+	fmt.Printf("tcp server port=%v\n", port)
+	tcpaddr, err := net.ResolveTCPAddr("tcp", port)
 	if err != nil {
 		fmt.Printf("error %v\n", err)
 		return
@@ -43,12 +85,10 @@ func main() {
 		return
 	}
 	defer listener.Close()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-
 		default:
 			listener.SetDeadline(time.Now().Add(time.Duration(1 * time.Second)))
 			conn, err := listener.AcceptTCP()

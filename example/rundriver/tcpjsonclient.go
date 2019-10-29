@@ -39,7 +39,7 @@ const (
 )
 
 func main() {
-	addr := flag.String("addr", "localhost:8080", "server addr")
+	addr := flag.String("addr", "localhost:8081", "server addr")
 	flag.Parse()
 	fmt.Printf("addr %v \n", *addr)
 
