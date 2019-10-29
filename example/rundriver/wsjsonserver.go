@@ -21,6 +21,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/kasworld/genprotocol/example/c2s_handlereq"
+	"github.com/kasworld/genprotocol/example/c2s_json"
+	"github.com/kasworld/genprotocol/example/c2s_serveconnbyte"
 )
 
 func main() {
@@ -61,7 +63,7 @@ func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	c2sc := c2s_handlereq.NewServeClientConn()
+	c2sc := c2s_serveconnbyte.New(c2s_json.MarshalBodyFn, c2s_handlereq.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeWS(ctx, wsConn)
 
 	// connected user play

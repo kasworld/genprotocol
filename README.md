@@ -66,6 +66,7 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_callsendrecv/callsendrecv_gen.go
 	goimports -w example/c2s_handlereq/fnobjtemplate_gen.go
 	goimports -w example/c2s_handlereq/fnbytestemplate_gen.go
+	goimports -w example/c2s_serveconnbyte/serveconnbyte_gen.go
 	goimports -w example/c2s_conntcp/conntcp_gen.go
 	goimports -w example/c2s_connwasm/connwasm_gen.go
 	goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go
@@ -144,6 +145,11 @@ prefix_looptcp : go server/client용 TCP Send/Recv loop
 
 	생성하는 파일 
 	looptcp_gen.go
+
+prefix_serveconnbyte : server 용 connection api server (tcp, websocket) packet body []byte 형태 
+
+	생성하는 파일 
+	serveconnbyte_gen.go
 
 prefix_connwasm : websocket wasm client 용 connection
 

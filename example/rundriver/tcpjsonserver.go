@@ -20,6 +20,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/kasworld/genprotocol/example/c2s_json"
+	"github.com/kasworld/genprotocol/example/c2s_serveconnbyte"
+
 	"github.com/kasworld/genprotocol/example/c2s_handlereq"
 )
 
@@ -63,7 +66,7 @@ func main() {
 }
 
 func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
-	c2sc := c2s_handlereq.NewServeClientConn()
+	c2sc := c2s_serveconnbyte.New(c2s_json.MarshalBodyFn, c2s_handlereq.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeTCP(ctx, conn)
 	conn.Close()
 }
