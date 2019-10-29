@@ -26,6 +26,9 @@ genprotocol -ver=1.0 -prefix=t2g -basedir=.
 
 과 같은 형태로 실행합니다. 
 
+자동 생성된 파일은 모두 _gen.go 로 끝나는 이름을 가집니다.
+ 
+
 ### 인자 설명 
 
 ver : protocol의 version ( protocol 마다 버전이 다를 수 있습니다. )
@@ -96,8 +99,8 @@ prefix_obj : protocol struct 들 (packet body)
 prefix_handlereq :   commandid -> api function map, 과 예제 api function들 
 
 	생성하는 파일 
-	fnbytestemplate_gen : packtebody 가 []byte 인 형태로 api로 demux, unmarshal을 api 쪽에서 해야 함 
-	fntemplate_gen  : packtebody 가 interface{} 인 형태로 api로 demux, unmarshal 후에 demux map을 호출 해야 함. 
+	fnbytestemplate_gen : packetbody 가 []byte 인 형태로 api로 demux, unmarshal을 api 쪽에서 해야 함 
+	fntemplate_gen  : packetbody 가 interface{} 인 형태로 api로 demux, unmarshal 후에 demux map을 호출 해야 함. 
 
 prefix_version : protocol version 정보 
 
