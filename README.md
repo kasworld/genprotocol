@@ -93,12 +93,11 @@ prefix_obj : protocol struct 들 (packet body)
 	생성하는 파일 
 	objtemplate_gen.go : 예제 파일 - 참고해서 "_gen"이 없는 파일을 만들것 
 
-prefix_handlereq :  request 를 받아서 api 로 전달 
+prefix_handlereq :   commandid -> api function map, 과 예제 api function들 
 
-	json_conn.go 참고, copy해서 필요한 서버 로직을 만듭니다. 
 	생성하는 파일 
-	demuxreq2api_gen.go : request 를 api로 연결 
-	apitemplate_gen.go  : api code template, 참고해서 "_gen"이 없는 파일을 만들것 
+	fnbytestemplate_gen : packtebody 가 []byte 인 형태로 api로 demux, unmarshal을 api 쪽에서 해야 함 
+	fntemplate_gen  : packtebody 가 interface{} 인 형태로 api로 demux, unmarshal 후에 demux map을 호출 해야 함. 
 
 prefix_version : protocol version 정보 
 
@@ -146,7 +145,7 @@ prefix_looptcp : go server/client용 TCP Send/Recv loop
 	생성하는 파일 
 	looptcp_gen.go
 
-prefix_serveconnbyte : server 용 connection api server (tcp, websocket) packet body []byte 형태 
+prefix_serveconnbyte : server 용 connection api 처리 (tcp, websocket) packet body []byte 형태 
 
 	생성하는 파일 
 	serveconnbyte_gen.go
@@ -176,7 +175,7 @@ prefix_handlenoti : notification을 받아서 처리
 	생성하는 파일 
 	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
 
-prefix_callsendrecv : blocked send/recv : response 를 받을때 까지 wait
+prefix_callsendrecv : blocked send/recv : response 를 받을때 까지 wait, 사용하지 않음.
 
 	생성하는 파일 
 	callsendrecv_gen.go      
