@@ -984,13 +984,14 @@ func buildRecvReqFnObjTemplate(prefix string, pkgname string, cmddata, notidata 
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	/* obj base demux fn map template 
 	`, pkgname)
 
 	fmt.Fprintf(&buf, `
-	var DemuxReq2ObjAPIFnMap = [...]func(
-	me interface{}, hd %[1]s_packet.Header, robj interface{}) (
-	%[1]s_packet.Header, interface{}, error){
+	type ObjAPIFn func(
+		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
+		%[1]s_packet.Header, interface{}, error)
+	/* obj base demux fn map template 
+	var DemuxReq2ObjAPIFnMap = [...]ObjAPIFn{
 	`, prefix)
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: Req2ObjAPI_%[2]s,\n", prefix, f[0])
@@ -1031,13 +1032,14 @@ func buildRecvReqFnBytesAPITemplate(prefix string, pkgname string, cmddata, noti
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	/* bytes base fn map api template , unmarshal in api
 	`, pkgname)
 
 	fmt.Fprintf(&buf, `
-	var DemuxReq2BytesAPIFnMap = [...]func(
-	me interface{}, hd %[1]s_packet.Header, rbody []byte) (
-	%[1]s_packet.Header, interface{}, error){
+	type ByteAPIFn func(
+		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
+		%[1]s_packet.Header, interface{}, error)
+	/* bytes base fn map api template , unmarshal in api
+	var DemuxReq2BytesAPIFnMap = [...]ByteAPIFn{
 	`, prefix)
 	for _, f := range cmddata {
 		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: bytesAPIFn_Req%[2]s,\n", prefix, f[0])
