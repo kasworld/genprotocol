@@ -669,6 +669,8 @@ func buildConst(prefix string, pkgname string) (*bytes.Buffer, error) {
 	const (
 		// MaxBodyLen set to max body len, affect send/recv buffer size
 		MaxBodyLen = 0xfffff
+		// PacketBufferPoolSize max size of pool packet buffer
+		PacketBufferPoolSize = 100
 	)
 	*/
 	`)
@@ -1432,7 +1434,7 @@ func buildConnWasm(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
-	var bufPool = %[1]s_packet.NewPool(100)
+	var bufPool = %[1]s_packet.NewPool(%[1]s_const.PacketBufferPoolSize)
 
 	type Connection struct {
 		remoteAddr   string
@@ -1733,7 +1735,7 @@ func buildLoopWSGorilla(prefix string, pkgname string) (*bytes.Buffer, error) {
 	`, pkgname)
 	fmt.Fprintf(&buf, `
 
-	var bufPool = %[1]s_packet.NewPool(100)
+	var bufPool = %[1]s_packet.NewPool(%[1]s_const.PacketBufferPoolSize)
 
 	func SendControl(
 		wsConn *websocket.Conn, mt int, PacketWriteTimeOut time.Duration) error {
@@ -1841,7 +1843,7 @@ func buildLoopTCP(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
-	var bufPool = %[1]s_packet.NewPool(100)
+	var bufPool = %[1]s_packet.NewPool(%[1]s_const.PacketBufferPoolSize)
 
 	func SendPacket(conn *net.TCPConn, buf []byte) error {
 		toWrite := len(buf)

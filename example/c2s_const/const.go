@@ -4,5 +4,6 @@ package c2s_const
 
 const (
 	// MaxBodyLen set to max body len, affect send/recv buffer size
-	MaxBodyLen = 0xfffff
+	MaxBodyLen           = 0xfffff
+	PacketBufferPoolSize = 100
 )
