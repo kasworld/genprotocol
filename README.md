@@ -58,6 +58,7 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_idcmd/command_gen.go
 	goimports -w example/c2s_idnoti/noti_gen.go
 	goimports -w example/c2s_error/error_gen.go
+	goimports -w example/c2s_const/const_gen.go
 	goimports -w example/c2s_packet/packet_gen.go
 	goimports -w example/c2s_obj/objtemplate_gen.go
 	goimports -w example/c2s_msgp/serialize_gen.go
@@ -121,6 +122,11 @@ prefix_idnoti : protocol notification list
 
 	생성하는 파일 
 	noti_gen.go
+
+prefix_const : 각종 상수들 , 설정의 변경이 가능하도록 모아둠. 
+
+	생성하는 파일 
+	const_gen.go : 복사해서 _gen 이 없는 파일을 만들고 comment를 풀어 사용할것.
 
 prefix_packet : protocol packet( header + body )
 

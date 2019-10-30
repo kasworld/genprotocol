@@ -106,6 +106,7 @@ func main() {
 		"_idcmd",
 		"_idnoti",
 		"_obj",
+		"_const",
 		"_packet",
 		"_version",
 		"_serveconnbyte",
@@ -155,6 +156,9 @@ func main() {
 
 	buf, err = buildErrorCode(*prefix+"_error", "ErrorCode", errordata)
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_error", "error_gen.go"))
+
+	buf, err = buildConst(*prefix, *prefix+"_const")
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_const", "const_gen.go"))
 
 	buf, err = buildPacket(*prefix, *prefix+"_packet")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_packet", "packet_gen.go"))
@@ -654,6 +658,23 @@ func buildCallSendRecv(prefix string, pkgname string, cmddata, notidata [][]stri
 	return &buf, nil
 }
 
+func buildConst(prefix string, pkgname string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	`, pkgname)
+	fmt.Fprintf(&buf, `
+	/*  copy to no _gen file, and edit it
+	const (
+		// MaxBodyLen set to max body len, affect send/recv buffer size
+		MaxBodyLen = 0xfffff
+	)
+	*/
+	`)
+	return &buf, nil
+}
+
 func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
@@ -685,14 +706,11 @@ func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	const (
-		// MaxBodyLen set to max body len, affect send/recv buffer size
-		MaxBodyLen = 0xfffff
-
 		// HeaderLen fixed size of header
 		HeaderLen = 4 + 4 + 2 + 2 + 1 + 1 + 2
 
 		// MaxPacketLen max total packet size byte of raw packet
-		MaxPacketLen = HeaderLen + MaxBodyLen
+		MaxPacketLen = HeaderLen +  %[1]s_const.MaxBodyLen
 	)
 
 	func (pk Packet) String() string {
@@ -897,7 +915,7 @@ func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 			return nil, err
 		}
 		bodyLen := len(newbuf) - HeaderLen
-		if bodyLen > MaxBodyLen {
+		if bodyLen > %[1]s_const.MaxBodyLen {
 			return nil,
 				fmt.Errorf("fail to serialize large packet %%v, %%v", pk.Header, bodyLen)
 		}

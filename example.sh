@@ -4,6 +4,7 @@ goimports -w example/c2s_version/version_gen.go
 goimports -w example/c2s_idcmd/command_gen.go
 goimports -w example/c2s_idnoti/noti_gen.go
 goimports -w example/c2s_error/error_gen.go
+goimports -w example/c2s_const/const_gen.go
 goimports -w example/c2s_packet/packet_gen.go
 goimports -w example/c2s_obj/objtemplate_gen.go
 goimports -w example/c2s_msgp/serialize_gen.go
@@ -26,6 +27,7 @@ goimports -w example/c2s_statnoti/statnoti_gen.go
 goimports -w example/c2s_statcallapi/statcallapi_gen.go
 goimports -w example/c2s_statserveapi/statserveapi_gen.go
 goimports -w example/c2s_statapierror/statapierror_gen.go
+
 
 cd example/rundriver 
 
