@@ -1090,41 +1090,42 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 	)
 	`, pkgname)
 	fmt.Fprintf(&buf, `
-	// service const
-	const (
-		sendBufferSize = 10
-		readTimeoutSec  = 6 * time.Second
-		writeTimeoutSec = 3 * time.Second
-	)
 	func (t2gc *ServeConnByte) String() string {
-		return fmt.Sprintf("ServeConnByte[SendCh:%%v]", len(t2gc.sendCh))
+		return fmt.Sprintf("ServeConnByte[SendCh:%%v/%%v]",
+			len(t2gc.sendCh), cap(t2gc.sendCh))
 	}
-	type ServeConnByte struct {
-		sendCh       chan %[1]s_packet.Packet
-		sendRecvStop func()
-		tid2StatObj  *%[1]s_statserveapi.PacketID2StatObj
-		protocolStat *%[1]s_statserveapi.StatServeAPI
-		notiStat     *%[1]s_statnoti.StatNotification
-		errorStat    *%[1]s_statapierror.StatAPIError
 	
-		marshalfn              func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error)
-		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
-		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
-		%[1]s_packet.Header, interface{}, error)
+	type ServeConnByte struct {
+		sendCh           chan c2s_packet.Packet
+		sendtrycount     int
+		sendretrywaitdur time.Duration
+		sendRecvStop     func()
+		tid2StatObj      *c2s_statserveapi.PacketID2StatObj
+		protocolStat     *c2s_statserveapi.StatServeAPI
+		notiStat         *c2s_statnoti.StatNotification
+		errorStat        *c2s_statapierror.StatAPIError
+	
+		demuxReq2BytesAPIFnMap [c2s_idcmd.CommandID_Count]func(
+			me interface{}, hd c2s_packet.Header, rbody []byte) (
+			c2s_packet.Header, interface{}, error)
 	}
+	
 	func New(
-		marshalfn func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error),
-		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
-		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
-		%[1]s_packet.Header, interface{}, error),
+		sendBufferSize int,
+		sendtrycount int,
+		sendretrywaitdur time.Duration,
+		demuxReq2BytesAPIFnMap [c2s_idcmd.CommandID_Count]func(
+			me interface{}, hd c2s_packet.Header, rbody []byte) (
+			c2s_packet.Header, interface{}, error),
 	) *ServeConnByte {
 		t2gc := &ServeConnByte{
-			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
-			tid2StatObj:            %[1]s_statserveapi.NewPacketID2StatObj(),
-			protocolStat:           %[1]s_statserveapi.New(),
-			notiStat:               %[1]s_statnoti.New(),
-			errorStat:              %[1]s_statapierror.New(),
-			marshalfn:              marshalfn,
+			sendCh:                 make(chan c2s_packet.Packet, sendBufferSize),
+			sendtrycount:           sendtrycount,
+			sendretrywaitdur:       sendretrywaitdur,
+			tid2StatObj:            c2s_statserveapi.NewPacketID2StatObj(),
+			protocolStat:           c2s_statserveapi.New(),
+			notiStat:               c2s_statnoti.New(),
+			errorStat:              c2s_statapierror.New(),
 			demuxReq2BytesAPIFnMap: demuxReq2BytesAPIFnMap,
 		}
 		t2gc.sendRecvStop = func() {
@@ -1132,31 +1133,36 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 		}
 		return t2gc
 	}
-	func (t2gc *ServeConnByte) GetProtocolStat() *%[1]s_statserveapi.StatServeAPI {
+	func (t2gc *ServeConnByte) GetProtocolStat() *c2s_statserveapi.StatServeAPI {
 		return t2gc.protocolStat
 	}
-	func (t2gc *ServeConnByte) GetNotiStat() *%[1]s_statnoti.StatNotification {
+	func (t2gc *ServeConnByte) GetNotiStat() *c2s_statnoti.StatNotification {
 		return t2gc.notiStat
 	}
-	func (t2gc *ServeConnByte) GetErrorStat() *%[1]s_statapierror.StatAPIError {
+	func (t2gc *ServeConnByte) GetErrorStat() *c2s_statapierror.StatAPIError {
 		return t2gc.errorStat
 	}
-	func (t2gc *ServeConnByte) StartServeWS(mainctx context.Context, conn *websocket.Conn) {
+	func (t2gc *ServeConnByte) StartServeWS(
+		mainctx context.Context, conn *websocket.Conn,
+		readTimeoutSec, writeTimeoutSec time.Duration,
+		marshalfn func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error),
+	) error {
+		var returnerr error
 		sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
 		t2gc.sendRecvStop = sendRecvCancel
 		go func() {
-			err := %[1]s_loopwsgorilla.RecvLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
+			err := c2s_loopwsgorilla.RecvLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
 				readTimeoutSec, t2gc.handleRecvPacket)
 			if err != nil {
-				fmt.Printf("end RecvLoop %%v\n", err)
+				returnerr = fmt.Errorf("end RecvLoop %%v", err)
 			}
 		}()
 		go func() {
-			err := %[1]s_loopwsgorilla.SendLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
+			err := c2s_loopwsgorilla.SendLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
 				writeTimeoutSec, t2gc.sendCh,
-				t2gc.marshalfn, t2gc.handleSentPacket)
+				marshalfn, t2gc.handleSentPacket)
 			if err != nil {
-				fmt.Printf("end SendLoop %%v\n", err)
+				returnerr = fmt.Errorf("end SendLoop %%v", err)
 			}
 		}()
 	loop:
@@ -1166,23 +1172,29 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 				break loop
 			}
 		}
+		return returnerr
 	}
-	func (t2gc *ServeConnByte) StartServeTCP(mainctx context.Context, conn *net.TCPConn) {
+	func (t2gc *ServeConnByte) StartServeTCP(
+		mainctx context.Context, conn *net.TCPConn,
+		readTimeoutSec, writeTimeoutSec time.Duration,
+		marshalfn func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error),
+	) error {
+		var returnerr error
 		sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
 		t2gc.sendRecvStop = sendRecvCancel
 		go func() {
-			err := %[1]s_looptcp.RecvLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
+			err := c2s_looptcp.RecvLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
 				readTimeoutSec, t2gc.handleRecvPacket)
 			if err != nil {
-				fmt.Printf("end RecvLoop %%v\n", err)
+				returnerr = fmt.Errorf("end RecvLoop %%v", err)
 			}
 		}()
 		go func() {
-			err := %[1]s_looptcp.SendLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
+			err := c2s_looptcp.SendLoop(sendRecvCtx, t2gc.sendRecvStop, conn,
 				writeTimeoutSec, t2gc.sendCh,
-				t2gc.marshalfn, t2gc.handleSentPacket)
+				marshalfn, t2gc.handleSentPacket)
 			if err != nil {
-				fmt.Printf("end SendLoop %%v\n", err)
+				returnerr = fmt.Errorf("end SendLoop %%v", err)
 			}
 		}()
 	loop:
@@ -1192,29 +1204,30 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 				break loop
 			}
 		}
+		return returnerr
 	}
-	func (t2gc *ServeConnByte) handleSentPacket(header %[1]s_packet.Header) error {
+	func (t2gc *ServeConnByte) handleSentPacket(header c2s_packet.Header) error {
 		switch header.FlowType {
 		default:
-			panic(fmt.Sprintf("invalid packet type %%s %%v", t2gc, header))
+			return fmt.Errorf("invalid packet type %s %%v", t2gc, header)
 	
-		case %[1]s_packet.Request:
-			panic(fmt.Sprintf("request packet not supported %%s %%v", t2gc, header))
+		case c2s_packet.Request:
+			return fmt.Errorf("request packet not supported %s %%v", t2gc, header)
 	
-		case %[1]s_packet.Response:
+		case c2s_packet.Response:
 			statOjb := t2gc.tid2StatObj.Del(header.ID)
 			if statOjb != nil {
 				statOjb.AfterSendRsp(header)
 			} else {
-				panic(fmt.Sprintf("send StatObj not found %%v", header))
+				return fmt.Errorf("send StatObj not found %%v", header)
 			}
-		case %[1]s_packet.Notification:
+		case c2s_packet.Notification:
 			t2gc.GetNotiStat().Add(header)
 		}
 		return nil
 	}
-	func (t2gc *ServeConnByte) handleRecvPacket(header %[1]s_packet.Header, rbody []byte) error {
-		if header.FlowType != %[1]s_packet.Request {
+	func (t2gc *ServeConnByte) handleRecvPacket(header c2s_packet.Header, rbody []byte) error {
+		if header.FlowType != c2s_packet.Request {
 			return fmt.Errorf("Unexpected header packet type: %%v", header)
 		}
 		if int(header.Cmd) >= len(t2gc.demuxReq2BytesAPIFnMap) {
@@ -1237,12 +1250,12 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 		sObj.BeforeAPICall()
 		fn := t2gc.demuxReq2BytesAPIFnMap[header.Cmd]
 		response, errcode, apierr := fn(t2gc, header, rbody)
-		t2gc.GetErrorStat().Inc(%[1]s_idcmd.CommandID(header.Cmd), response.ErrorCode)
+		t2gc.GetErrorStat().Inc(c2s_idcmd.CommandID(header.Cmd), response.ErrorCode)
 		sObj.AfterAPICall()
-		if errcode != %[1]s_error.Disconnect && apierr == nil {
+		if errcode != c2s_error.Disconnect && apierr == nil {
 			rhd := header
-			rhd.FlowType = %[1]s_packet.Response
-			rpk := %[1]s_packet.Packet{
+			rhd.FlowType = c2s_packet.Response
+			rpk := c2s_packet.Packet{
 				Header: rhd,
 				Body:   response,
 			}
@@ -1250,8 +1263,8 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 		}
 		return apierr
 	}
-	func (t2gc *ServeConnByte) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
-		trycount := 10
+	func (t2gc *ServeConnByte) EnqueueSendPacket(pk c2s_packet.Packet) error {
+		trycount := t2gc.sendtrycount
 		for trycount > 0 {
 			select {
 			case t2gc.sendCh <- pk:
@@ -1259,13 +1272,13 @@ func buildServeConnByte(prefix string, pkgname string) (*bytes.Buffer, error) {
 			default:
 				trycount--
 			}
-			fmt.Printf("Send delayed, %%s send channel busy %%v, retry %%v\n",
-				t2gc, len(t2gc.sendCh), 10-trycount)
-			time.Sleep(1 * time.Millisecond)
+			fmt.Printf("Send delayed, %%v, retry %%v\n",
+				t2gc, t2gc.sendtrycount-trycount)
+			time.Sleep(t2gc.sendretrywaitdur)
 		}
 		return fmt.Errorf("Send channel full %%v", t2gc)
 	}
-	`, prefix)
+		`, prefix)
 	return &buf, nil
 }
 

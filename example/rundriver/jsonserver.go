@@ -28,6 +28,13 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_handlereq"
 )
 
+// service const
+const (
+	sendBufferSize  = 10
+	readTimeoutSec  = 6 * time.Second
+	writeTimeoutSec = 3 * time.Second
+)
+
 func main() {
 	httpport := flag.String("httpport", ":8080", "Serve httpport")
 	httpfolder := flag.String("httpdir", "www", "Serve http Dir")
@@ -67,8 +74,11 @@ func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Re
 		fmt.Printf("upgrade %v\n", err)
 		return
 	}
-	c2sc := c2s_serveconnbyte.New(c2s_json.MarshalBodyFn, c2s_handlereq.DemuxReq2BytesAPIFnMap)
-	c2sc.StartServeWS(ctx, wsConn)
+	c2sc := c2s_serveconnbyte.New(
+		sendBufferSize, 10, time.Millisecond,
+		c2s_handlereq.DemuxReq2BytesAPIFnMap)
+	c2sc.StartServeWS(ctx, wsConn,
+		readTimeoutSec, writeTimeoutSec, c2s_json.MarshalBodyFn)
 	wsConn.Close()
 }
 
@@ -106,7 +116,10 @@ func serveTCP(ctx context.Context, port string) {
 }
 
 func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
-	c2sc := c2s_serveconnbyte.New(c2s_json.MarshalBodyFn, c2s_handlereq.DemuxReq2BytesAPIFnMap)
-	c2sc.StartServeTCP(ctx, conn)
+	c2sc := c2s_serveconnbyte.New(
+		sendBufferSize, 10, time.Millisecond,
+		c2s_handlereq.DemuxReq2BytesAPIFnMap)
+	c2sc.StartServeTCP(ctx, conn,
+		readTimeoutSec, writeTimeoutSec, c2s_json.MarshalBodyFn)
 	conn.Close()
 }
