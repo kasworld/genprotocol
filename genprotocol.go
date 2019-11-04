@@ -227,7 +227,7 @@ func main() {
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statapierror", "statapierror_gen.go"))
 }
 
-func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
+func buildDataCode(pkgname string, enumtype string, enumdata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
@@ -237,7 +237,7 @@ func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buf
 	`, pkgname, enumtype)
 
 	fmt.Fprintf(&buf, "const (\n")
-	for i, v := range data {
+	for i, v := range enumdata {
 		if i == 0 {
 			fmt.Fprintf(&buf, "%v %v = iota // %v \n", v[0], enumtype, v[1])
 		} else {
@@ -250,7 +250,7 @@ func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buf
 	var _%[1]s_str = map[%[1]s]string{
 	`, enumtype)
 
-	for _, v := range data {
+	for _, v := range enumdata {
 		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
@@ -263,10 +263,25 @@ func buildDataCode(pkgname string, enumtype string, data [][]string) (*bytes.Buf
 	}
 	`, enumtype)
 
+	fmt.Fprintf(&buf, `
+	var _string2%[1]s = map[string]%[1]s{
+	`, enumtype)
+
+	for _, v := range enumdata {
+		fmt.Fprintf(&buf, "\"%v\" : %v, \n", v[0], v[0])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	fmt.Fprintf(&buf, `
+	func  String2%[1]s(s string) (%[1]s, bool) {
+		v, b :=  _string2%[1]s[s]
+		return v,b
+	}
+	`, enumtype)
+
 	return &buf, nil
 }
 
-func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Buffer, error) {
+func buildErrorCode(pkgname string, enumtype string, enumdata [][]string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, makeGenComment())
 	fmt.Fprintf(&buf, `
@@ -276,7 +291,7 @@ func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Bu
 	`, pkgname, enumtype)
 
 	fmt.Fprintf(&buf, "const (\n")
-	for i, v := range data {
+	for i, v := range enumdata {
 		if i == 0 {
 			fmt.Fprintf(&buf, "%v %v = iota // %v \n", v[0], enumtype, v[1])
 		} else {
@@ -289,7 +304,7 @@ func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Bu
 	var _%[1]s_str = map[%[1]s]string{
 	`, enumtype)
 
-	for _, v := range data {
+	for _, v := range enumdata {
 		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
@@ -305,6 +320,21 @@ func buildErrorCode(pkgname string, enumtype string, data [][]string) (*bytes.Bu
 		return "%[2]s." + e.String()
 	}
 	`, enumtype, pkgname)
+
+	fmt.Fprintf(&buf, `
+	var _string2%[1]s = map[string]%[1]s{
+	`, enumtype)
+
+	for _, v := range enumdata {
+		fmt.Fprintf(&buf, "\"%v\" : %v, \n", v[0], v[0])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	fmt.Fprintf(&buf, `
+	func  String2%[1]s(s string) (%[1]s, bool) {
+		v, b :=  _string2%[1]s[s]
+		return v,b
+	}
+	`, enumtype)
 
 	return &buf, nil
 }
