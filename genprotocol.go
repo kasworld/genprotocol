@@ -76,9 +76,10 @@ func saveTo(outdata *bytes.Buffer, buferr error, outfilename string) error {
 }
 
 var (
-	ver     = flag.String("ver", "", "protocol version")
-	prefix  = flag.String("prefix", "", "protocol prefix")
-	basedir = flag.String("basedir", "", "base directory")
+	ver       = flag.String("ver", "", "protocol version")
+	prefix    = flag.String("prefix", "", "protocol prefix")
+	basedir   = flag.String("basedir", "", "base directory")
+	statstype = flag.String("statstype", "", "stats element type, empty not generate")
 )
 
 func main() {
@@ -225,6 +226,20 @@ func main() {
 
 	buf, err = buildStatAPIError(*prefix, *prefix+"_statapierror")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statapierror", "statapierror_gen.go"))
+
+	if *statstype != "" {
+		dirToMake := [][2]string{
+			{"_error", "ErrorCode"},
+			{"_idcmd", "CommandID"},
+			{"_idnoti", "NotiID"},
+		}
+		for _, v := range dirToMake {
+			packagename := *prefix + v[0]
+			os.MkdirAll(path.Join(*basedir, packagename+"_stats"), os.ModePerm)
+			buf, err = buildStatsCode(packagename, v[1], *statstype)
+			saveTo(buf, err, path.Join(*basedir, packagename+"_stats", packagename+"_stats_gen.go"))
+		}
+	}
 }
 
 func buildDataCode(pkgname string, enumtype string, enumdata [][]string) (*bytes.Buffer, error) {
@@ -2606,5 +2621,98 @@ func buildStatAPIError(prefix string, pkgname string) (*bytes.Buffer, error) {
 		return nil
 	}
 	`, prefix, '`')
+	return &buf, nil
+}
+
+func buildStatsCode(pkgname string, typename string, statstype string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s_stats
+	import (
+		"bytes"
+		"fmt"
+		"html/template"
+		"net/http"
+	)
+	`, pkgname, typename)
+
+	fmt.Fprintf(&buf, `
+	type %[2]sStat [%[1]s.%[2]s_Count]%[4]s
+	func (es *%[2]sStat) String() string {
+		var buf bytes.Buffer
+		fmt.Fprintf(&buf, "%[2]sStats[")
+		for i, v := range es {
+			fmt.Fprintf(&buf,
+				"%%v:%%v ",
+				%[1]s.%[2]s(i), v)
+		}
+		buf.WriteString("]")
+		return buf.String()
+	}
+	func (es *%[2]sStat) Inc(e %[1]s.%[2]s) {
+		es[e]+=1
+	}
+	func (es *%[2]sStat) Add(e %[1]s.%[2]s, v %[4]s) {
+		es[e]+=v
+	}
+	func (es *%[2]sStat) SetIfGt(e %[1]s.%[2]s, v %[4]s) {
+		if es[e] < v {
+			es[e]=v
+		}
+	}
+	func (es *%[2]sStat) Get(e %[1]s.%[2]s) %[4]s {
+		return es[e]
+	}
+	
+	func (es *%[2]sStat) ToWeb(w http.ResponseWriter, r *http.Request) error {
+		tplIndex, err := template.New("index").Funcs(IndexFn).Parse(%[3]c
+		<html>
+		<head>
+		<title>%[2]s statistics</title>
+		</head>
+		<body>
+		<table border=1 style="border-collapse:collapse;">%[3]c +
+			HTML_tableheader +
+			%[3]c{{range $i, $v := .}}%[3]c +
+			HTML_row +
+			%[3]c{{end}}%[3]c +
+			HTML_tableheader +
+			%[3]c</table>
+	
+		<br/>
+		</body>
+		</html>
+		%[3]c)
+		if err != nil {
+			return err
+		}
+		if err := tplIndex.Execute(w, es); err != nil {
+			return err
+		}
+		return nil
+	}
+	
+	func Index(i int) string {
+		return %[1]s.%[2]s(i).String()
+	}
+	
+	var IndexFn = template.FuncMap{
+		"%[2]sIndex": Index,
+	}
+	
+	const (
+		HTML_tableheader = %[3]c<tr>
+		<th>Name</th>
+		<th>Value</th>
+		</tr>%[3]c
+		HTML_row = %[3]c<tr>
+		<td>{{%[2]sIndex $i}}</td>
+		<td>{{$v}}</td>
+		</tr>
+		%[3]c
+	)
+	`, pkgname, typename, '`', statstype)
+
 	return &buf, nil
 }

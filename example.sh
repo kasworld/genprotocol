@@ -1,4 +1,4 @@
-go run genprotocol.go -ver=1.0 -prefix=c2s -basedir example
+go run genprotocol.go -ver=1.0 -prefix=c2s -basedir example -statstype=int
 
 goimports -w example/c2s_version/version_gen.go
 goimports -w example/c2s_idcmd/command_gen.go
@@ -27,6 +27,10 @@ goimports -w example/c2s_statnoti/statnoti_gen.go
 goimports -w example/c2s_statcallapi/statcallapi_gen.go
 goimports -w example/c2s_statserveapi/statserveapi_gen.go
 goimports -w example/c2s_statapierror/statapierror_gen.go
+
+goimports -w example/c2s_error_stats/c2s_error_stats_gen.go
+goimports -w example/c2s_idcmd_stats/c2s_idcmd_stats_gen.go
+goimports -w example/c2s_idnoti_stats/c2s_idnoti_stats_gen.go
 
 
 cd example/rundriver 
