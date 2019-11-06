@@ -939,6 +939,9 @@ func buildPacket(prefix string, pkgname string) (*bytes.Buffer, error) {
 	// Read use for partial recv like tcp read
 	func (pb *RecvPacketBuffer) Read(conn io.Reader) error {
 		toRead := pb.NeedRecvLen()
+		if toRead > MaxPacketLen {
+			return fmt.Errorf("packet size over MaxPacketLen")
+		}
 		for pb.RecvLen < toRead {
 			n, err := conn.Read(pb.RecvBuffer[pb.RecvLen:toRead])
 			if err != nil {
