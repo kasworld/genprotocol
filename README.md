@@ -81,11 +81,13 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_statcallapi/statcallapi_gen.go
 	goimports -w example/c2s_statserveapi/statserveapi_gen.go
 	goimports -w example/c2s_statapierror/statapierror_gen.go
+	goimports -w example/c2s_authorize/authorize_gen.go
+
 
 	인자로 -statstype=elementtype 이 주어진 경우 추가로 생성
 	goimports -w example/c2s_error_stats/c2s_error_stats_gen.go
 	goimports -w example/c2s_idcmd_stats/c2s_idcmd_stats_gen.go
-	goimports -w example/c2s_idnoti_stats/c2s_idnoti_stats_gen.go	
+	goimports -w example/c2s_idnoti_stats/c2s_idnoti_stats_gen.go
 
 
 prefix_gendata : genprotocol에서 읽어 들이는 파일들 
@@ -218,6 +220,11 @@ prefix_statapierror : api 결과 error 통계
 
 	생성하는 파일 
 	statapierror_gen.go	
+
+prefix_authorize : client api call의 권한 관리 (commandid 기준)
+
+	생성하는 파일 
+	authorize_gen.go	
 
 ## 인자로 -statstype=elementtype 이 주어진 경우 추가로 생성하는 패키지 
 

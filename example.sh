@@ -27,6 +27,7 @@ goimports -w example/c2s_statnoti/statnoti_gen.go
 goimports -w example/c2s_statcallapi/statcallapi_gen.go
 goimports -w example/c2s_statserveapi/statserveapi_gen.go
 goimports -w example/c2s_statapierror/statapierror_gen.go
+goimports -w example/c2s_authorize/authorize_gen.go
 
 goimports -w example/c2s_error_stats/c2s_error_stats_gen.go
 goimports -w example/c2s_idcmd_stats/c2s_idcmd_stats_gen.go

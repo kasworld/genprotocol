@@ -121,6 +121,7 @@ func main() {
 		"_statcallapi",
 		"_statserveapi",
 		"_statapierror",
+		"_authorize",
 	}
 
 	cmddatafile := path.Join(*basedir, *prefix+"_gendata", "command.data")
@@ -226,6 +227,9 @@ func main() {
 
 	buf, err = buildStatAPIError(*prefix, *prefix+"_statapierror")
 	saveTo(buf, err, path.Join(*basedir, *prefix+"_statapierror", "statapierror_gen.go"))
+
+	buf, err = buildAuthorize(*prefix, *prefix+"_authorize")
+	saveTo(buf, err, path.Join(*basedir, *prefix+"_authorize", "authorize_gen.go"))
 
 	if *statstype != "" {
 		dirToMake := [][2]string{
@@ -2624,6 +2628,77 @@ func buildStatAPIError(prefix string, pkgname string) (*bytes.Buffer, error) {
 		return nil
 	}
 	`, prefix, '`')
+	return &buf, nil
+}
+
+func buildAuthorize(prefix string, pkgname string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, makeGenComment())
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	import (
+		"bytes"
+		"fmt"
+	)
+	`, pkgname)
+	fmt.Fprintf(&buf, `
+	type AuthorizedCmds [%[1]s_idcmd.CommandID_Count]bool
+
+	func (acidl *AuthorizedCmds) String() string {
+		var buff bytes.Buffer
+		fmt.Fprintf(&buff, "AuthorizedCmds[")
+		for i, v := range acidl {
+			if v {
+				fmt.Fprintf(&buff, "%v ", %[1]s_idcmd.CommandID(i))
+			}
+		}
+		fmt.Fprintf(&buff, "]")
+		return buff.String()
+	}
+	
+	func NewAllSet() *AuthorizedCmds {
+		rtn := new(AuthorizedCmds)
+		for i := 0; i < %[1]s_idcmd.CommandID_Count; i++ {
+			rtn[i] = true
+		}
+		return rtn
+	}
+	
+	func NewByCmdIDList(cmdlist []%[1]s_idcmd.CommandID) *AuthorizedCmds {
+		rtn := new(AuthorizedCmds)
+		for _, id := range cmdlist {
+			rtn[id] = true
+		}
+		return rtn
+	}
+	
+	func (acidl *AuthorizedCmds) Union(src *AuthorizedCmds) *AuthorizedCmds {
+		for cmdid, auth := range src {
+			if auth {
+				acidl[cmdid] = true
+			}
+		}
+		return acidl
+	}
+	
+	func (acidl *AuthorizedCmds) SubIntersection(src *AuthorizedCmds) *AuthorizedCmds {
+		for cmdid, auth := range src {
+			if auth {
+				acidl[cmdid] = false
+			}
+		}
+		return acidl
+	}
+	
+	func (acidl *AuthorizedCmds) Duplicate() *AuthorizedCmds {
+		rtn := *acidl
+		return &rtn
+	}
+	
+	func (acidl *AuthorizedCmds) CheckAuth(cmdid %[1]s_idcmd.CommandID) bool {
+		return acidl[cmdid]
+	}
+	`, prefix)
 	return &buf, nil
 }
 
