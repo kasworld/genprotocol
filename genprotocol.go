@@ -2649,7 +2649,7 @@ func buildAuthorize(prefix string, pkgname string) (*bytes.Buffer, error) {
 		fmt.Fprintf(&buff, "AuthorizedCmds[")
 		for i, v := range acidl {
 			if v {
-				fmt.Fprintf(&buff, "%v ", %[1]s_idcmd.CommandID(i))
+				fmt.Fprintf(&buff, "%%v ", %[1]s_idcmd.CommandID(i))
 			}
 		}
 		fmt.Fprintf(&buff, "]")
