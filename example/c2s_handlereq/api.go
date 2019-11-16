@@ -29,11 +29,9 @@ func bytesAPIFn_ReqInvalidCmd(
 	// }
 	// _ = recvBody
 
-	sendHeader := c2s_packet.Header{
-		ErrorCode: c2s_error.None,
-	}
+	hd.ErrorCode = c2s_error.None
 	sendBody := &c2s_obj.RspInvalidCmd_data{}
-	return sendHeader, sendBody, nil
+	return hd, sendBody, nil
 }
 
 func bytesAPIFn_ReqLogin(
@@ -49,11 +47,9 @@ func bytesAPIFn_ReqLogin(
 	// }
 	// _ = recvBody
 
-	sendHeader := c2s_packet.Header{
-		ErrorCode: c2s_error.None,
-	}
+	hd.ErrorCode = c2s_error.None
 	sendBody := &c2s_obj.RspLogin_data{}
-	return sendHeader, sendBody, nil
+	return hd, sendBody, nil
 }
 
 func bytesAPIFn_ReqHeartbeat(
@@ -69,11 +65,9 @@ func bytesAPIFn_ReqHeartbeat(
 	// }
 	// _ = recvBody
 
-	sendHeader := c2s_packet.Header{
-		ErrorCode: c2s_error.None,
-	}
+	hd.ErrorCode = c2s_error.None
 	sendBody := &c2s_obj.RspHeartbeat_data{}
-	return sendHeader, sendBody, nil
+	return hd, sendBody, nil
 }
 
 func bytesAPIFn_ReqChat(
@@ -89,9 +83,7 @@ func bytesAPIFn_ReqChat(
 	// }
 	// _ = recvBody
 
-	sendHeader := c2s_packet.Header{
-		ErrorCode: c2s_error.None,
-	}
+	hd.ErrorCode = c2s_error.None
 	sendBody := &c2s_obj.RspChat_data{}
-	return sendHeader, sendBody, nil
+	return hd, sendBody, nil
 }

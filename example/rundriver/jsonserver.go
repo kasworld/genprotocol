@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/kasworld/genprotocol/example/c2s_authorize"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_serveconnbyte"
 
@@ -76,6 +77,7 @@ func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	c2sc := c2s_serveconnbyte.New(
 		sendBufferSize, 10, time.Millisecond,
+		c2s_authorize.NewAllSet(),
 		c2s_handlereq.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeWS(ctx, wsConn,
 		readTimeoutSec, writeTimeoutSec, c2s_json.MarshalBodyFn)
@@ -118,6 +120,7 @@ func serveTCP(ctx context.Context, port string) {
 func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
 	c2sc := c2s_serveconnbyte.New(
 		sendBufferSize, 10, time.Millisecond,
+		c2s_authorize.NewAllSet(),
 		c2s_handlereq.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeTCP(ctx, conn,
 		readTimeoutSec, writeTimeoutSec, c2s_json.MarshalBodyFn)

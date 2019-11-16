@@ -1108,6 +1108,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		protocolStat     *%[1]s_statserveapi.StatServeAPI
 		notiStat         *%[1]s_statnoti.StatNotification
 		errorStat        *%[1]s_statapierror.StatAPIError
+		AuthorCmdList    *%[1]s_authorize.AuthorizedCmds
 	
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
@@ -1118,6 +1119,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		sendBufferSize int,
 		sendtrycount int,
 		sendretrywaitdur time.Duration,
+		AuthorCmdList *%[1]s_authorize.AuthorizedCmds,
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
 			%[1]s_packet.Header, interface{}, error),
@@ -1130,6 +1132,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 			protocolStat:           %[1]s_statserveapi.New(),
 			notiStat:               %[1]s_statnoti.New(),
 			errorStat:              %[1]s_statapierror.New(),
+			AuthorCmdList:          AuthorCmdList,
 			demuxReq2BytesAPIFnMap: demuxReq2BytesAPIFnMap,
 		}
 		t2gc.sendRecvStop = func() {
@@ -1247,6 +1250,10 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 				return err
 			}
 		}
+		if !t2gc.AuthorCmdList.CheckAuth(%[1]s_idcmd.CommandID(header.Cmd)) {
+			return fmt.Errorf("Not authorized packet %v", header)
+		}
+	
 		sObj := t2gc.tid2StatObj.Get(header.ID)
 		if sObj == nil {
 			return fmt.Errorf("protocol stat obj nil %%v, maybe pkid duplicate?", header.ID)
