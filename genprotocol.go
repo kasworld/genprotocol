@@ -1230,7 +1230,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		}
 		return nil
 	}
-	func (t2gc *ServeConnByte) handleRecvPacket(header %[1]s_packet.Header, rbody []byte) error {
+	func (t2gc *ServeConnByte) handleRecvPacket(header %[1]s_packet.Header, body []byte) error {
 		if header.FlowType != %[1]s_packet.Request {
 			return fmt.Errorf("Unexpected header packet type: %%v", header)
 		}
@@ -1253,15 +1253,14 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		}
 		sObj.BeforeAPICall()
 		fn := t2gc.demuxReq2BytesAPIFnMap[header.Cmd]
-		response, errcode, apierr := fn(t2gc, header, rbody)
-		t2gc.GetErrorStat().Inc(%[1]s_idcmd.CommandID(header.Cmd), response.ErrorCode)
+		sheader, sbody, apierr := fn(t2gc, header, body)
+		t2gc.GetErrorStat().Inc(%[1]s_idcmd.CommandID(header.Cmd), sheader.ErrorCode)
 		sObj.AfterAPICall()
-		if errcode != %[1]s_error.Disconnect && apierr == nil {
-			rhd := header
-			rhd.FlowType = %[1]s_packet.Response
+		if sheader.ErrorCode != %[1]s_error.Disconnect && apierr == nil {
+			sheader.FlowType = %[1]s_packet.Response
 			rpk := %[1]s_packet.Packet{
-				Header: rhd,
-				Body:   response,
+				Header: sheader,
+				Body:   sbody,
 			}
 			t2gc.EnqueueSendPacket(rpk)
 		}
