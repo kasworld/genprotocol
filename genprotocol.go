@@ -1251,7 +1251,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 			}
 		}
 		if !t2gc.AuthorCmdList.CheckAuth(%[1]s_idcmd.CommandID(header.Cmd)) {
-			return fmt.Errorf("Not authorized packet %v", header)
+			return fmt.Errorf("Not authorized packet %%v", header)
 		}
 	
 		sObj := t2gc.tid2StatObj.Get(header.ID)
