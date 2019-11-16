@@ -262,7 +262,7 @@ func buildErrorEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	`, genArgs.Prefix+postfix)
 	for i, v := range genArgs.ErrorIDs {
 		if i == 0 {
-			fmt.Fprintf(&buf, "%v %v = iota // %v \n", v[0], v[1])
+			fmt.Fprintf(&buf, "%v ErrorCode = iota // %v \n", v[0], v[1])
 		} else {
 			fmt.Fprintf(&buf, "%v // %v\n", v[0], v[1])
 		}
