@@ -1280,17 +1280,20 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		statObj.AfterAPICall()
 
 		scb.errorStat.Inc(%[1]s_idcmd.CommandID(rheader.Cmd), sheader.ErrorCode)
-		if apierr == nil {
-			sheader.FlowType = %[1]s_packet.Response
-			sheader.Cmd = rheader.Cmd
-			sheader.ID = rheader.ID
-			rpk := %[1]s_packet.Packet{
-				Header: sheader,
-				Body:   sbody,
-			}
-			return scb.EnqueueSendPacket(rpk)
+		if apierr != nil {
+			return apierr
 		}
-		return apierr
+		if sbody == nil {
+			return fmt.Errorf("Response body nil")
+		}
+		sheader.FlowType = %[1]s_packet.Response
+		sheader.Cmd = rheader.Cmd
+		sheader.ID = rheader.ID
+		rpk := %[1]s_packet.Packet{
+			Header: sheader,
+			Body:   sbody,
+		}
+		return scb.EnqueueSendPacket(rpk)
 	}
 	func (scb *ServeConnByte) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
 		select {
