@@ -76,7 +76,7 @@ func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 	c2sc := c2s_serveconnbyte.New(
-		sendBufferSize, 10, time.Millisecond,
+		sendBufferSize,
 		c2s_authorize.NewAllSet(),
 		c2s_handlereq.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeWS(ctx, wsConn,
@@ -119,7 +119,7 @@ func serveTCP(ctx context.Context, port string) {
 
 func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
 	c2sc := c2s_serveconnbyte.New(
-		sendBufferSize, 10, time.Millisecond,
+		sendBufferSize,
 		c2s_authorize.NewAllSet(),
 		c2s_handlereq.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeTCP(ctx, conn,

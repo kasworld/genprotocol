@@ -1101,8 +1101,6 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	
 	type ServeConnByte struct {
 		sendCh           chan %[1]s_packet.Packet
-		sendtrycount     int
-		sendretrywaitdur time.Duration
 		sendRecvStop     func()
 		authorCmdList    *%[1]s_authorize.AuthorizedCmds
 		pid2ApiStatObj   *%[1]s_statserveapi.PacketID2StatObj
@@ -1117,8 +1115,6 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	// New with stats local
 	func New(
 		sendBufferSize int,
-		sendtrycount int,
-		sendretrywaitdur time.Duration,
 		authorCmdList *%[1]s_authorize.AuthorizedCmds,
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
@@ -1126,8 +1122,6 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	) *ServeConnByte {
 		scb := &ServeConnByte{
 			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
-			sendtrycount:           sendtrycount,
-			sendretrywaitdur:       sendretrywaitdur,
 			pid2ApiStatObj:         %[1]s_statserveapi.NewPacketID2StatObj(),
 			apiStat:                %[1]s_statserveapi.New(),
 			notiStat:               %[1]s_statnoti.New(),
@@ -1143,8 +1137,6 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	// NewWithStats with stats global
 	func NewWithStats(
 		sendBufferSize int,
-		sendtrycount int,
-		sendretrywaitdur time.Duration,
 		authorCmdList    *%[1]s_authorize.AuthorizedCmds,
 		apiStat          *%[1]s_statserveapi.StatServeAPI,
 		notiStat         *%[1]s_statnoti.StatNotification,
@@ -1155,8 +1147,6 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	) *ServeConnByte {
 		scb := &ServeConnByte{
 			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
-			sendtrycount:           sendtrycount,
-			sendretrywaitdur:       sendretrywaitdur,
 			pid2ApiStatObj:         %[1]s_statserveapi.NewPacketID2StatObj(),
 			apiStat:                apiStat,
 			notiStat:               notiStat,
@@ -1307,21 +1297,14 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		return apierr
 	}
 	func (scb *ServeConnByte) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
-		trycount := scb.sendtrycount
-		for trycount > 0 {
-			select {
-			case scb.sendCh <- pk:
-				return nil
-			default:
-				trycount--
-			}
-			fmt.Printf("Send delayed, %%v, retry %%v\n",
-				scb, scb.sendtrycount-trycount)
-			time.Sleep(scb.sendretrywaitdur)
+		select {
+		case scb.sendCh <- pk:
+			return nil
+		default:
+			return fmt.Errorf("Send channel full %v", scb)
 		}
-		return fmt.Errorf("Send channel full %%v", scb)
 	}
-		`, genArgs.Prefix)
+	`, genArgs.Prefix)
 	return &buf, nil
 }
 
@@ -1428,17 +1411,12 @@ func buildConnTCP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	}
 	
 	func (tc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
-		trycount := 10
-		for trycount > 0 {
-			select {
-			case tc.sendCh <- pk:
-				return nil
-			default:
-				trycount--
-			}
-			time.Sleep(1 * time.Millisecond)
+		select {
+		case tc.sendCh <- pk:
+			return nil
+		default:
+			return fmt.Errorf("Send channel full %v", tc)
 		}
-		return fmt.Errorf("Send channel full %%v", tc)
 	}
 	`, genArgs.Prefix)
 	return &buf, nil
@@ -1726,18 +1704,12 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	}
 	
 	func (tc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
-		trycount := 10
-		for trycount > 0 {
-			select {
-			case tc.sendCh <- pk:
-				return nil
-			default:
-				trycount--
-			}
-			time.Sleep(1 * time.Millisecond)
+		select {
+		case tc.sendCh <- pk:
+			return nil
+		default:
+			return fmt.Errorf("Send channel full %%v", tc)
 		}
-	
-		return fmt.Errorf("Send channel full %%v", tc)
 	}
 	`, genArgs.Prefix)
 	return &buf, nil
