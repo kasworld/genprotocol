@@ -285,7 +285,7 @@ func buildErrorEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	}
 	// implement error interface
 	func (e ErrorCode) Error() string {
-		return "%[2]s." + e.String()
+		return "%[1]s." + e.String()
 	}
 	var _string2ErrorCode = map[string]ErrorCode{
 	`, genArgs.Prefix+postfix)
@@ -371,23 +371,23 @@ func buildPacket(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		switch h.FlowType {
 		default:
 			return fmt.Sprintf(
-				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
+				"Header[%%v:%%v ID:%%v Error:%%v BodyLen:%%v BodyType:%%v Fill:%%v]",
 				h.FlowType, h.Cmd, h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		case invalid:
 			return fmt.Sprintf(
-				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
+				"Header[%%v:%%v ID:%%v Error:%%v BodyLen:%%v BodyType:%%v Fill:%%v]",
 				h.FlowType, h.Cmd, h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		case Request:
 			return fmt.Sprintf(
-				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
+				"Header[%%v:%%v ID:%%v Error:%%v BodyLen:%%v BodyType:%%v Fill:%%v]",
 				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		case Response:
 			return fmt.Sprintf(
-				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
+				"Header[%%v:%%v ID:%%v Error:%%v BodyLen:%%v BodyType:%%v Fill:%%v]",
 				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		case Notification:
 			return fmt.Sprintf(
-				"Header[%%v:%%v ID:%%v Error:%%v bodyLen:%%v Compress:%%v Fill:%%v]",
+				"Header[%%v:%%v ID:%%v Error:%%v BodyLen:%%v BodyType:%%v Fill:%%v]",
 				h.FlowType, %[1]s_idnoti.NotiID(h.Cmd), h.ID, h.ErrorCode, h.bodyLen, h.bodyType, h.Fill)
 		}
 	}
