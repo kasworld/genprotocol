@@ -67,7 +67,6 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_handlersp/fnbytestemplate_gen.go
 	goimports -w example/c2s_handlenoti/fnobjtemplate_gen.go
 	goimports -w example/c2s_handlenoti/fnbytestemplate_gen.go
-	goimports -w example/c2s_callsendrecv/callsendrecv_gen.go
 	goimports -w example/c2s_handlereq/fnobjtemplate_gen.go
 	goimports -w example/c2s_handlereq/fnbytestemplate_gen.go
 	goimports -w example/c2s_serveconnbyte/serveconnbyte_gen.go
@@ -190,11 +189,6 @@ prefix_handlenoti : notification을 받아서 처리
 
 	생성하는 파일 
 	recvnotiobjfnmap_gen.go  : 받은 notification 처리 
-
-prefix_callsendrecv : blocked send/recv : response 를 받을때 까지 wait, 사용하지 않음.
-
-	생성하는 파일 
-	callsendrecv_gen.go      
 
 prefix_pid2rspfn : callback 형태로 request/response를 처리하기위한 lib(client example참조)
 

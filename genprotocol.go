@@ -112,7 +112,6 @@ func main() {
 		MakeDest{"_handlereq", "fnbytestemplate_gen.go", buildRecvReqFnBytesAPITemplate},
 		MakeDest{"_handlenoti", "fnobjtemplate_gen.go", buildRecvNotiFnObjTemplate},
 		MakeDest{"_handlenoti", "fnbytestemplate_gen.go", buildRecvNotiFnBytesTemplate},
-		MakeDest{"_callsendrecv", "callsendrecv_gen.go", buildCallSendRecv},
 		MakeDest{"_serveconnbyte", "serveconnbyte_gen.go", buildServeConnByte},
 		MakeDest{"_conntcp", "conntcp_gen.go", buildConnTCP},
 		MakeDest{"_connwasm", "connwasm_gen.go", buildConnWasm},
@@ -951,39 +950,6 @@ func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) (*bytes.Buffe
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
-}
-
-func buildCallSendRecv(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
-	var buf bytes.Buffer
-	fmt.Fprintln(&buf, genArgs.GenComment)
-	fmt.Fprintf(&buf, `
-	package %[1]s
-	type C2SConnectI interface {
-		SendRecv(
-			cmd %[2]s_idcmd.CommandID, body interface{}) (
-			%[2]s_packet.Header, interface{}, error)
-	
-		CheckAPI(hd %[2]s_packet.Header) error
-	}
-	`, genArgs.Prefix+postfix, genArgs.Prefix)
-	for _, f := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, `
-			func Call_%[2]s(%[1]sc C2SConnectI,arg *%[1]s_obj.Req%[2]s_data) (*%[1]s_obj.Rsp%[2]s_data, error) {
-				if arg == nil {
-					arg = &%[1]s_obj.Req%[2]s_data{}
-				}
-				hd, rsp, err := %[1]sc.SendRecv(
-					%[1]s_idcmd.%[2]s,
-					arg)
-				if err != nil {
-					return nil, err
-				}
-				robj := rsp.(*%[1]s_obj.Rsp%[2]s_data)
-				return robj, %[1]sc.CheckAPI(hd)
-			}
-			`, genArgs.Prefix, f[0])
-	}
 	return &buf, nil
 }
 

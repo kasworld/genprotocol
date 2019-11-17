@@ -13,7 +13,6 @@ goimports -w example/c2s_handlersp/fnobjtemplate_gen.go
 goimports -w example/c2s_handlersp/fnbytestemplate_gen.go
 goimports -w example/c2s_handlenoti/fnobjtemplate_gen.go
 goimports -w example/c2s_handlenoti/fnbytestemplate_gen.go
-goimports -w example/c2s_callsendrecv/callsendrecv_gen.go
 goimports -w example/c2s_handlereq/fnobjtemplate_gen.go
 goimports -w example/c2s_handlereq/fnbytestemplate_gen.go
 goimports -w example/c2s_serveconnbyte/serveconnbyte_gen.go
