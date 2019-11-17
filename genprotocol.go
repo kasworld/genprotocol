@@ -1282,6 +1282,8 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		scb.errorStat.Inc(%[1]s_idcmd.CommandID(rheader.Cmd), sheader.ErrorCode)
 		if sheader.ErrorCode != %[1]s_error.Disconnect && apierr == nil {
 			sheader.FlowType = %[1]s_packet.Response
+			sheader.Cmd = rheader.Cmd
+			sheader.ID = rheader.ID
 			rpk := %[1]s_packet.Packet{
 				Header: sheader,
 				Body:   sbody,
