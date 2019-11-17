@@ -1263,8 +1263,10 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		if int(header.Cmd) >= len(scb.demuxReq2BytesAPIFnMap) {
 			return fmt.Errorf("Invalid header command %%v", header)
 		}
+		if !scb.authorCmdList.CheckAuth(%[1]s_idcmd.CommandID(header.Cmd)) {
+			return fmt.Errorf("Not authorized packet %%v", header)
+		}
 	
-		
 		if statObj, err := scb.apiStat.AfterRecvReqHeader(header) ; err != nil {
 			fmt.Printf("%%v\n", err)
 		} else {
@@ -1273,26 +1275,24 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 				return err
 			}
 		}
-		if !scb.authorCmdList.CheckAuth(%[1]s_idcmd.CommandID(header.Cmd)) {
-			return fmt.Errorf("Not authorized packet %%v", header)
-		}
-	
 		sObj := scb.pid2ApiStatObj.Get(header.ID)
 		if sObj == nil {
-			return fmt.Errorf("protocol stat obj nil %%v, maybe pkid duplicate?", header.ID)
+			return fmt.Errorf("API stat obj nil %%v, maybe pkid duplicate?", header.ID)
 		}
+
 		sObj.BeforeAPICall()
 		fn := scb.demuxReq2BytesAPIFnMap[header.Cmd]
 		sheader, sbody, apierr := fn(scb, header, body)
-		scb.errorStat.Inc(%[1]s_idcmd.CommandID(header.Cmd), sheader.ErrorCode)
 		sObj.AfterAPICall()
+
+		scb.errorStat.Inc(%[1]s_idcmd.CommandID(header.Cmd), sheader.ErrorCode)
 		if sheader.ErrorCode != %[1]s_error.Disconnect && apierr == nil {
 			sheader.FlowType = %[1]s_packet.Response
 			rpk := %[1]s_packet.Packet{
 				Header: sheader,
 				Body:   sbody,
 			}
-			scb.EnqueueSendPacket(rpk)
+			return scb.EnqueueSendPacket(rpk)
 		}
 		return apierr
 	}
