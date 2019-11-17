@@ -9,6 +9,7 @@ goimports -w example/c2s_packet/packet_gen.go
 goimports -w example/c2s_obj/objtemplate_gen.go
 goimports -w example/c2s_msgp/serialize_gen.go
 goimports -w example/c2s_json/serialize_gen.go
+goimports -w example/c2s_gob/serialize_gen.go
 goimports -w example/c2s_handlersp/fnobjtemplate_gen.go
 goimports -w example/c2s_handlersp/fnbytestemplate_gen.go
 goimports -w example/c2s_handlenoti/fnobjtemplate_gen.go

@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kasworld/genprotocol/example/c2s_conntcp"
 	"github.com/kasworld/genprotocol/example/c2s_connwsgorilla"
 	"github.com/kasworld/genprotocol/example/c2s_error"
+	"github.com/kasworld/genprotocol/example/c2s_gob"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
 	"github.com/kasworld/genprotocol/example/c2s_json"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
@@ -38,20 +40,44 @@ const (
 	writeTimeoutSec = 3 * time.Second
 )
 
+var gMarshalBodyFn func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error)
+var gUnmarshalPacket func(h c2s_packet.Header, bodyData []byte) (interface{}, error)
+
 func main() {
 	addr := flag.String("addr", "localhost:8080", "server addr")
+	marshaltype := flag.String("marshaltype", "json", "msgp,json,gob")
+	nettype := flag.String("nettype", "ws", "tcp,ws websocket")
+
 	flag.Parse()
 	fmt.Printf("addr %v \n", *addr)
 
+	switch *marshaltype {
+	default:
+		fmt.Printf("unsupported marshaltype %v\n", *marshaltype)
+		return
+	// case "msgp":
+	// 	gMarshalBodyFn = c2s_msgp.MarshalBodyFn
+	// 	gUnmarshalPacket = c2s_msgp.UnmarshalPacket
+	case "json":
+		gMarshalBodyFn = c2s_json.MarshalBodyFn
+		gUnmarshalPacket = c2s_json.UnmarshalPacket
+	case "gob":
+		gMarshalBodyFn = c2s_gob.MarshalBodyFn
+		gUnmarshalPacket = c2s_gob.UnmarshalPacket
+	}
+	fmt.Printf("start using marshaltype %v\n", *marshaltype)
+
 	app := NewApp(*addr)
-	app.sendTestPacket()
-	app.sendTestPacket()
-	app.Run()
+	app.Run(*nettype)
 }
 
 type App struct {
-	addr         string
-	c2sc         *c2s_connwsgorilla.Connection
+	addr string
+
+	c2scWS            *c2s_connwsgorilla.Connection
+	c2scTCP           *c2s_conntcp.Connection
+	EnqueueSendPacket func(pk c2s_packet.Packet) error
+
 	sendRecvStop func()
 	apistat      *c2s_statcallapi.StatCallAPI
 	pid2statobj  *c2s_statcallapi.PacketID2StatObj
@@ -72,24 +98,71 @@ func NewApp(addr string) *App {
 	app.sendRecvStop = func() {
 		fmt.Printf("Too early sendRecvStop call\n")
 	}
-	app.c2sc = c2s_connwsgorilla.New(
-		readTimeoutSec, writeTimeoutSec,
-		c2s_json.MarshalBodyFn,
-		app.handleRecvPacket,
-		app.handleSentPacket,
-	)
+	app.EnqueueSendPacket = func(pk c2s_packet.Packet) error {
+		fmt.Printf("Too early EnqueueSendPacket call\n")
+		return nil
+	}
 	return app
 }
 
-func (app *App) Run() {
-	if err := app.c2sc.ConnectTo(app.addr); err != nil {
-		fmt.Printf("%v\n", err)
-		return
-	}
+func (app *App) Run(nettype string) {
 	ctx, stopFn := context.WithCancel(context.Background())
 	app.sendRecvStop = stopFn
 	defer app.sendRecvStop()
-	app.c2sc.Run(ctx)
+
+	switch nettype {
+	default:
+		fmt.Printf("unsupported nettype %v\n", nettype)
+		return
+	case "tcp":
+		go app.connectTCP(ctx)
+	case "ws":
+		go app.connectWS(ctx)
+	}
+	fmt.Printf("start using nettype %v\n", nettype)
+
+	time.Sleep(time.Second)
+	app.sendTestPacket()
+	app.sendTestPacket()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (app *App) connectWS(ctx context.Context) {
+	app.c2scWS = c2s_connwsgorilla.New(
+		readTimeoutSec, writeTimeoutSec,
+		gMarshalBodyFn,
+		app.handleRecvPacket,
+		app.handleSentPacket,
+	)
+	if err := app.c2scWS.ConnectTo(app.addr); err != nil {
+		fmt.Printf("%v\n", err)
+		app.sendRecvStop()
+		return
+	}
+	app.EnqueueSendPacket = app.c2scWS.EnqueueSendPacket
+	app.c2scWS.Run(ctx)
+}
+
+func (app *App) connectTCP(ctx context.Context) {
+	app.c2scTCP = c2s_conntcp.New(
+		readTimeoutSec, writeTimeoutSec,
+		gMarshalBodyFn,
+		app.handleRecvPacket,
+		app.handleSentPacket,
+	)
+	if err := app.c2scTCP.ConnectTo(app.addr); err != nil {
+		fmt.Printf("%v\n", err)
+		app.sendRecvStop()
+		return
+	}
+	app.EnqueueSendPacket = app.c2scTCP.EnqueueSendPacket
+	app.c2scTCP.Run(ctx)
 }
 
 func (app *App) handleSentPacket(header c2s_packet.Header) error {
@@ -167,7 +240,7 @@ func (app *App) ReqWithRspFn(cmd c2s_idcmd.CommandID, body interface{},
 	}
 	app.pid2statobj.Add(spk.Header.ID, psobj)
 
-	if err := app.c2sc.EnqueueSendPacket(spk); err != nil {
+	if err := app.EnqueueSendPacket(spk); err != nil {
 		fmt.Printf("End %v %v %v\n", app, spk, err)
 		app.sendRecvStop()
 		return fmt.Errorf("Send fail %v %v", app, err)

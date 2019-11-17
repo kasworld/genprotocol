@@ -106,6 +106,7 @@ func main() {
 		MakeDest{"_obj", "objtemplate_gen.go", buildObjTemplate},
 		MakeDest{"_msgp", "serialize_gen.go", buildMSGP},
 		MakeDest{"_json", "serialize_gen.go", buildJSON},
+		MakeDest{"_gob", "serialize_gen.go", buildGOB},
 		MakeDest{"_handlersp", "fnobjtemplate_gen.go", buildRecvRspFnObjTemplate},
 		MakeDest{"_handlersp", "fnbytestemplate_gen.go", buildRecvRspFnBytesTemplate},
 		MakeDest{"_handlereq", "fnobjtemplate_gen.go", buildRecvReqFnObjTemplate},
@@ -655,7 +656,7 @@ func buildMSGP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
 	// MarshalBodyFn marshal body and append to oldBufferToAppend
-	// and return newbuffer, body type(marshaltype,compress,encryption), error
+	// and return newbuffer, body type, error
 	func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
 		newBuffer, err := body.(msgp.Marshaler).MarshalMsg(oldBuffToAppend)
 		return newBuffer, 0, err
@@ -741,7 +742,7 @@ func buildJSON(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
 	// marshal body and append to oldBufferToAppend
-	// and return newbuffer, body type(marshaltype,compress,encryption), error
+	// and return newbuffer, body type, error
 	func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
 		var newBuffer []byte
 		mdata, err := json.Marshal(body)
@@ -811,6 +812,94 @@ func buildJSON(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 			return nil, err
 		}
 		return &args, nil
+	}
+	`
+	for _, v := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, unmarshalFunc, "Req", v[0], genArgs.Prefix)
+		fmt.Fprintf(&buf, unmarshalFunc, "Rsp", v[0], genArgs.Prefix)
+	}
+	for _, v := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, unmarshalFunc, "Noti", v[0], genArgs.Prefix)
+	}
+	return &buf, nil
+}
+
+func buildGOB(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+		package %[1]s
+	`, genArgs.Prefix+postfix)
+	fmt.Fprintf(&buf, `
+	// marshal body and append to oldBufferToAppend
+	// and return newbuffer, body type, error
+	func MarshalBodyFn(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error) {
+		network := bytes.NewBuffer(oldBuffToAppend)
+		enc := gob.NewEncoder(network)
+		err := enc.Encode(body)
+		return network.Bytes(), 0, err
+	}
+	
+	func UnmarshalPacket(h %[1]s_packet.Header,  bodyData []byte) (interface{}, error) {
+		switch h.FlowType {
+		case %[1]s_packet.Request:
+			if int(h.Cmd) >= len(ReqUnmarshalMap) {
+				return nil, fmt.Errorf("unknown request command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return ReqUnmarshalMap[h.Cmd](h,bodyData)
+
+		case %[1]s_packet.Response:
+			if int(h.Cmd) >= len(RspUnmarshalMap) {
+				return nil, fmt.Errorf("unknown response command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return RspUnmarshalMap[h.Cmd](h,bodyData)
+
+		case %[1]s_packet.Notification:
+			if int(h.Cmd) >= len(NotiUnmarshalMap) {
+				return nil, fmt.Errorf("unknown notification command: %%v %%v", 
+				h.FlowType, %[1]s_idcmd.CommandID(h.Cmd))
+			}
+			return NotiUnmarshalMap[h.Cmd](h,bodyData)
+		}
+		return nil, fmt.Errorf("unknown packet FlowType %%v",h.FlowType)
+	}
+	`, genArgs.Prefix)
+
+	const unmarshalMapHeader = `
+	var %[2]s = [...]func(h %[1]s_packet.Header,bodyData []byte) (interface{}, error) {
+	`
+	const unmarshalMapBody = "%[1]s_idcmd:  unmarshal_%[2]s%[3]s, \n"
+
+	// req map
+	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "ReqUnmarshalMap")
+	for _, v := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
+	}
+	fmt.Fprintf(&buf, "}\n")
+
+	// rsp map
+	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "RspUnmarshalMap")
+	for _, v := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
+	}
+	fmt.Fprintf(&buf, "}\n")
+
+	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "NotiUnmarshalMap")
+	// noti map
+	for _, v := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
+	}
+	fmt.Fprintf(&buf, "}\n")
+
+	const unmarshalFunc = `
+	func unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
+		var args %[3]s_obj.%[1]s%[2]s_data
+		network := bytes.NewBuffer(bodyData)
+		dec := gob.NewDecoder(network)
+		err := dec.Decode(&args)
+		return &args, err
 	}
 	`
 	for _, v := range genArgs.CmdIDs {

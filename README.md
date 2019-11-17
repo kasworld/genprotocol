@@ -149,6 +149,11 @@ prefix_json : json marshal/unmarshal code
 	생성하는 파일 
 	serialize_gen.go
 
+prefix_gob : gob marshal/unmarshal code 
+
+	생성하는 파일 
+	serialize_gen.go
+
 
 prefix_loopwsgorilla : go server/client용 gorilla websocket Send/Recv loop ([gorilla](http://www.gorillatoolkit.org/pkg/websocket)) 
 
