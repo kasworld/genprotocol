@@ -164,7 +164,7 @@ var DemuxReq2BytesAPIFnMap = [...]func(
 func bytesAPIFn_ReqInvalidCmd(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
-	// robj, err := c2s_json.UnmarshalPacket(hd, rbody)
+	// robj, err := gUnmarshalPacket(hd, rbody)
 	// if err != nil {
 	// 	return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
 	// }
@@ -182,7 +182,7 @@ func bytesAPIFn_ReqInvalidCmd(
 func bytesAPIFn_ReqLogin(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
-	// robj, err := c2s_json.UnmarshalPacket(hd, rbody)
+	// robj, err := gUnmarshalPacket(hd, rbody)
 	// if err != nil {
 	// 	return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
 	// }
@@ -200,35 +200,35 @@ func bytesAPIFn_ReqLogin(
 func bytesAPIFn_ReqHeartbeat(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
-	// robj, err := c2s_json.UnmarshalPacket(hd, rbody)
-	// if err != nil {
-	// 	return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
-	// }
-	// recvBody, ok := robj.(*c2s_obj.ReqHeartbeat_data)
-	// if !ok {
-	// 	return hd, nil, fmt.Errorf("Packet type miss match %v", robj)
-	// }
-	// _ = recvBody
+	robj, err := gUnmarshalPacket(hd, rbody)
+	if err != nil {
+		return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
+	}
+	recvBody, ok := robj.(*c2s_obj.ReqHeartbeat_data)
+	if !ok {
+		return hd, nil, fmt.Errorf("Packet type miss match %v", robj)
+	}
+	_ = recvBody
 
 	hd.ErrorCode = c2s_error.None
-	sendBody := &c2s_obj.RspHeartbeat_data{}
+	sendBody := &c2s_obj.RspHeartbeat_data{recvBody.Now}
 	return hd, sendBody, nil
 }
 
 func bytesAPIFn_ReqChat(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
-	// robj, err := c2s_json.UnmarshalPacket(hd, rbody)
-	// if err != nil {
-	// 	return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
-	// }
-	// recvBody, ok := robj.(*c2s_obj.ReqChat_data)
-	// if !ok {
-	// 	return hd, nil, fmt.Errorf("Packet type miss match %v", robj)
-	// }
-	// _ = recvBody
+	robj, err := gUnmarshalPacket(hd, rbody)
+	if err != nil {
+		return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
+	}
+	recvBody, ok := robj.(*c2s_obj.ReqChat_data)
+	if !ok {
+		return hd, nil, fmt.Errorf("Packet type miss match %v", robj)
+	}
+	_ = recvBody
 
 	hd.ErrorCode = c2s_error.None
-	sendBody := &c2s_obj.RspChat_data{}
+	sendBody := &c2s_obj.RspChat_data{recvBody.Msg}
 	return hd, sendBody, nil
 }

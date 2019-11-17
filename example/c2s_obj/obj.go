@@ -1,5 +1,7 @@
 package c2s_obj
 
+import "time"
+
 type ReqInvalidCmd_data struct {
 	Dummy uint8
 }
@@ -15,17 +17,17 @@ type RspLogin_data struct {
 }
 
 type ReqHeartbeat_data struct {
-	Dummy uint8
+	Now time.Time
 }
 type RspHeartbeat_data struct {
-	Dummy uint8
+	Now time.Time
 }
 
 type ReqChat_data struct {
-	Dummy uint8
+	Msg string
 }
 type RspChat_data struct {
-	Dummy uint8
+	Msg string
 }
 
 type NotiBroadcast_data struct {

@@ -133,6 +133,26 @@ func (app *App) Run(nettype string) {
 	}
 }
 
+func (app *App) sendTestPacket() error {
+	return app.ReqWithRspFn(
+		c2s_idcmd.Heartbeat,
+		c2s_obj.ReqHeartbeat_data{time.Now()},
+		func(hd c2s_packet.Header, rbody interface{}) error {
+			robj, err := gUnmarshalPacket(hd, rbody.([]byte))
+			if err != nil {
+				return fmt.Errorf("Packet type miss match %v", rbody)
+			}
+			recvBody, ok := robj.(*c2s_obj.RspHeartbeat_data)
+			if !ok {
+				return fmt.Errorf("Packet type miss match %v", robj)
+			}
+
+			fmt.Printf("ping %v\n", time.Now().Sub(recvBody.Now))
+			return nil
+		},
+	)
+}
+
 func (app *App) connectWS(ctx context.Context) {
 	app.c2scWS = c2s_connwsgorilla.New(
 		readTimeoutSec, writeTimeoutSec,
@@ -206,18 +226,6 @@ func (app *App) handleRecvPacket(header c2s_packet.Header, body []byte) error {
 		go app.sendTestPacket()
 	}
 	return nil
-}
-
-func (app *App) sendTestPacket() error {
-	return app.ReqWithRspFn(
-		c2s_idcmd.Heartbeat,
-		c2s_obj.ReqHeartbeat_data{},
-		func(hd c2s_packet.Header, rsp interface{}) error {
-			// response here
-			// robj, err := c2s_json.UnmarshalPacket(header, body)
-			return nil
-		},
-	)
 }
 
 func (app *App) ReqWithRspFn(cmd c2s_idcmd.CommandID, body interface{},
