@@ -1104,22 +1104,22 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		sendtrycount     int
 		sendretrywaitdur time.Duration
 		sendRecvStop     func()
+		authorCmdList    *%[1]s_authorize.AuthorizedCmds
 		tid2StatObj      *%[1]s_statserveapi.PacketID2StatObj
 		protocolStat     *%[1]s_statserveapi.StatServeAPI
 		notiStat         *%[1]s_statnoti.StatNotification
 		errorStat        *%[1]s_statapierror.StatAPIError
-		AuthorCmdList    *%[1]s_authorize.AuthorizedCmds
 	
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
 			%[1]s_packet.Header, interface{}, error)
 	}
-	
+	// New with stats local
 	func New(
 		sendBufferSize int,
 		sendtrycount int,
 		sendretrywaitdur time.Duration,
-		AuthorCmdList *%[1]s_authorize.AuthorizedCmds,
+		authorCmdList *%[1]s_authorize.AuthorizedCmds,
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
 			%[1]s_packet.Header, interface{}, error),
@@ -1132,7 +1132,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 			protocolStat:           %[1]s_statserveapi.New(),
 			notiStat:               %[1]s_statnoti.New(),
 			errorStat:              %[1]s_statapierror.New(),
-			AuthorCmdList:          AuthorCmdList,
+			authorCmdList:          authorCmdList,
 			demuxReq2BytesAPIFnMap: demuxReq2BytesAPIFnMap,
 		}
 		t2gc.sendRecvStop = func() {
@@ -1140,6 +1140,36 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		}
 		return t2gc
 	}
+	// NewWithStats with stats global
+	func NewWithStats(
+		sendBufferSize int,
+		sendtrycount int,
+		sendretrywaitdur time.Duration,
+		authorCmdList *%[1]s_authorize.AuthorizedCmds,
+		protocolStat     *%[1]s_statserveapi.StatServeAPI,
+		notiStat         *%[1]s_statnoti.StatNotification,
+		errorStat        *%[1]s_statapierror.StatAPIError,
+		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
+			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
+			%[1]s_packet.Header, interface{}, error),
+	) *ServeConnByte {
+		t2gc := &ServeConnByte{
+			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
+			sendtrycount:           sendtrycount,
+			sendretrywaitdur:       sendretrywaitdur,
+			tid2StatObj:            %[1]s_statserveapi.NewPacketID2StatObj(),
+			protocolStat:           protocolStat,
+			notiStat:               notiStat,
+			errorStat:              errorStat,
+			authorCmdList:          authorCmdList,
+			demuxReq2BytesAPIFnMap: demuxReq2BytesAPIFnMap,
+		}
+		t2gc.sendRecvStop = func() {
+			fmt.Printf("Too early sendRecvStop call %%v\n", t2gc)
+		}
+		return t2gc
+	}
+
 	func (t2gc *ServeConnByte) GetProtocolStat() *%[1]s_statserveapi.StatServeAPI {
 		return t2gc.protocolStat
 	}
@@ -1148,6 +1178,9 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 	}
 	func (t2gc *ServeConnByte) GetErrorStat() *%[1]s_statapierror.StatAPIError {
 		return t2gc.errorStat
+	}
+	func (t2gc *ServeConnByte) GetAuthorCmdList() *%[1]s_authorize.AuthorizedCmds {
+		return t2gc.authorCmdList
 	}
 	func (t2gc *ServeConnByte) StartServeWS(
 		mainctx context.Context, conn *websocket.Conn,
@@ -1229,7 +1262,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 				return fmt.Errorf("send StatObj not found %%v", header)
 			}
 		case %[1]s_packet.Notification:
-			t2gc.GetNotiStat().Add(header)
+			t2gc.notiStat.Add(header)
 		}
 		return nil
 	}
@@ -1241,8 +1274,8 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 			return fmt.Errorf("Invalid header command %%v", header)
 		}
 	
-		statObj, err := t2gc.GetProtocolStat().AfterRecvReqHeader(header)
-		if err != nil {
+		
+		if statObj, err := t2gc.protocolStat.AfterRecvReqHeader(header) ; err != nil {
 			fmt.Printf("%%v\n", err)
 		} else {
 			if err := t2gc.tid2StatObj.Add(header.ID, statObj); err != nil {
@@ -1250,7 +1283,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 				return err
 			}
 		}
-		if !t2gc.AuthorCmdList.CheckAuth(%[1]s_idcmd.CommandID(header.Cmd)) {
+		if !t2gc.authorCmdList.CheckAuth(%[1]s_idcmd.CommandID(header.Cmd)) {
 			return fmt.Errorf("Not authorized packet %%v", header)
 		}
 	
@@ -1261,7 +1294,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		sObj.BeforeAPICall()
 		fn := t2gc.demuxReq2BytesAPIFnMap[header.Cmd]
 		sheader, sbody, apierr := fn(t2gc, header, body)
-		t2gc.GetErrorStat().Inc(%[1]s_idcmd.CommandID(header.Cmd), sheader.ErrorCode)
+		t2gc.errorStat.Inc(%[1]s_idcmd.CommandID(header.Cmd), sheader.ErrorCode)
 		sObj.AfterAPICall()
 		if sheader.ErrorCode != %[1]s_error.Disconnect && apierr == nil {
 			sheader.FlowType = %[1]s_packet.Response
