@@ -1217,6 +1217,9 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return scb
 	}
 
+	func (scb *ServeConnByte) Disconnect() {
+		scb.sendRecvStop()
+	}
 	func (scb *ServeConnByte) GetConnData() interface{} {
 		return scb.connData
 	}
