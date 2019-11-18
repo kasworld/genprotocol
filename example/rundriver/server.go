@@ -151,6 +151,7 @@ func (svr *Server) serveWebSocketClient(ctx context.Context, w http.ResponseWrit
 		return
 	}
 	c2sc := c2s_serveconnbyte.NewWithStats(
+		nil,
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
 		svr.apiStat,
@@ -197,6 +198,7 @@ func (svr *Server) serveTCP(ctx context.Context, port string) {
 
 func (svr *Server) serveTCPClient(ctx context.Context, conn *net.TCPConn) {
 	c2sc := c2s_serveconnbyte.NewWithStats(
+		nil,
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
 		svr.apiStat,

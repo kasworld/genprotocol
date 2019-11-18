@@ -1152,6 +1152,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	}
 	
 	type ServeConnByte struct {
+		connData         interface{} // custom data for this conn
 		sendCh           chan %[1]s_packet.Packet
 		sendRecvStop     func()
 		authorCmdList    *%[1]s_authorize.AuthorizedCmds
@@ -1166,6 +1167,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	}
 	// New with stats local
 	func New(
+		connData interface{},
 		sendBufferSize int,
 		authorCmdList *%[1]s_authorize.AuthorizedCmds,
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
@@ -1173,6 +1175,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			%[1]s_packet.Header, interface{}, error),
 	) *ServeConnByte {
 		scb := &ServeConnByte{
+			connData:               connData,
 			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
 			pid2ApiStatObj:         %[1]s_statserveapi.NewPacketID2StatObj(),
 			apiStat:                %[1]s_statserveapi.New(),
@@ -1188,6 +1191,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	}
 	// NewWithStats with stats global
 	func NewWithStats(
+		connData interface{},
 		sendBufferSize int,
 		authorCmdList    *%[1]s_authorize.AuthorizedCmds,
 		apiStat          *%[1]s_statserveapi.StatServeAPI,
@@ -1198,6 +1202,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			%[1]s_packet.Header, interface{}, error),
 	) *ServeConnByte {
 		scb := &ServeConnByte{
+			connData:               connData,
 			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
 			pid2ApiStatObj:         %[1]s_statserveapi.NewPacketID2StatObj(),
 			apiStat:                apiStat,
@@ -1212,6 +1217,9 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return scb
 	}
 
+	func (scb *ServeConnByte) GetConnData() interface{} {
+		return scb.connData
+	}
 	func (scb *ServeConnByte) GetAPIStat() *%[1]s_statserveapi.StatServeAPI {
 		return scb.apiStat
 	}
