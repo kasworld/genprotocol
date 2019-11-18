@@ -30,6 +30,9 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
 	"github.com/kasworld/genprotocol/example/c2s_serveconnbyte"
+	"github.com/kasworld/genprotocol/example/c2s_statapierror"
+	"github.com/kasworld/genprotocol/example/c2s_statnoti"
+	"github.com/kasworld/genprotocol/example/c2s_statserveapi"
 )
 
 // service const
@@ -39,9 +42,6 @@ const (
 	writeTimeoutSec = 3 * time.Second
 )
 
-var gMarshalBodyFn func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error)
-var gUnmarshalPacket func(h c2s_packet.Header, bodyData []byte) (interface{}, error)
-
 func main() {
 	httpport := flag.String("httpport", ":8080", "Serve httpport")
 	httpfolder := flag.String("httpdir", "www", "Serve http Dir")
@@ -49,28 +49,80 @@ func main() {
 	marshaltype := flag.String("marshaltype", "json", "msgp,json,gob")
 	flag.Parse()
 
-	switch *marshaltype {
+	svr := NewServer(*marshaltype)
+	svr.Run(*tcpport, *httpport, *httpfolder)
+}
+
+type Server struct {
+	sendRecvStop           func()
+	apiStat                *c2s_statserveapi.StatServeAPI
+	notiStat               *c2s_statnoti.StatNotification
+	errStat                *c2s_statapierror.StatAPIError
+	marshalBodyFn          func(body interface{}, oldBuffToAppend []byte) ([]byte, byte, error)
+	unmarshalPacketFn      func(h c2s_packet.Header, bodyData []byte) (interface{}, error)
+	DemuxReq2BytesAPIFnMap [c2s_idcmd.CommandID_Count]func(
+		me interface{}, hd c2s_packet.Header, rbody []byte) (
+		c2s_packet.Header, interface{}, error)
+}
+
+func NewServer(marshaltype string) *Server {
+	svr := &Server{
+		apiStat:  c2s_statserveapi.New(),
+		notiStat: c2s_statnoti.New(),
+		errStat:  c2s_statapierror.New(),
+	}
+	svr.sendRecvStop = func() {
+		fmt.Printf("Too early sendRecvStop call\n")
+	}
+
+	switch marshaltype {
 	default:
-		fmt.Printf("unsupported marshaltype %v\n", *marshaltype)
-		return
+		fmt.Printf("unsupported marshaltype %v\n", marshaltype)
+		return nil
 	// case "msgp":
 	// 	gMarshalBodyFn = c2s_msgp.MarshalBodyFn
 	// 	gUnmarshalPacket = c2s_msgp.UnmarshalPacket
 	case "json":
-		gMarshalBodyFn = c2s_json.MarshalBodyFn
-		gUnmarshalPacket = c2s_json.UnmarshalPacket
+		svr.marshalBodyFn = c2s_json.MarshalBodyFn
+		svr.unmarshalPacketFn = c2s_json.UnmarshalPacket
 	case "gob":
-		gMarshalBodyFn = c2s_gob.MarshalBodyFn
-		gUnmarshalPacket = c2s_gob.UnmarshalPacket
+		svr.marshalBodyFn = c2s_gob.MarshalBodyFn
+		svr.unmarshalPacketFn = c2s_gob.UnmarshalPacket
 	}
-	fmt.Printf("start using marshaltype %v\n", *marshaltype)
-
-	ctx := context.Background()
-	go serveTCP(ctx, *tcpport)
-	serveHTTP(ctx, *httpport, *httpfolder)
+	fmt.Printf("start using marshaltype %v\n", marshaltype)
+	svr.DemuxReq2BytesAPIFnMap = [...]func(
+		me interface{}, hd c2s_packet.Header, rbody []byte) (
+		c2s_packet.Header, interface{}, error){
+		c2s_idcmd.InvalidCmd: svr.bytesAPIFn_ReqInvalidCmd,
+		c2s_idcmd.Login:      svr.bytesAPIFn_ReqLogin,
+		c2s_idcmd.Heartbeat:  svr.bytesAPIFn_ReqHeartbeat,
+		c2s_idcmd.Chat:       svr.bytesAPIFn_ReqChat,
+	}
+	return svr
 }
 
-func serveHTTP(ctx context.Context, port string, folder string) {
+func (svr *Server) Run(tcpport string, httpport string, httpfolder string) {
+	ctx, stopFn := context.WithCancel(context.Background())
+	svr.sendRecvStop = stopFn
+	defer svr.sendRecvStop()
+
+	go svr.serveTCP(ctx, tcpport)
+	go svr.serveHTTP(ctx, httpport, httpfolder)
+
+	timerInfoTk := time.NewTicker(1 * time.Second)
+	defer timerInfoTk.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timerInfoTk.C:
+
+		}
+	}
+}
+
+func (svr *Server) serveHTTP(ctx context.Context, port string, folder string) {
 	fmt.Printf("http server dir=%v port=%v , http://localhost%v/\n",
 		folder, port, port)
 	webMux := http.NewServeMux()
@@ -78,7 +130,7 @@ func serveHTTP(ctx context.Context, port string, folder string) {
 		http.FileServer(http.Dir(folder)),
 	)
 	webMux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWebSocketClient(ctx, w, r)
+		svr.serveWebSocketClient(ctx, w, r)
 	})
 	if err := http.ListenAndServe(port, webMux); err != nil {
 		fmt.Println(err.Error())
@@ -89,7 +141,7 @@ func CheckOrigin(r *http.Request) bool {
 	return true
 }
 
-func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (svr *Server) serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
 		CheckOrigin: CheckOrigin,
 	}
@@ -98,16 +150,19 @@ func serveWebSocketClient(ctx context.Context, w http.ResponseWriter, r *http.Re
 		fmt.Printf("upgrade %v\n", err)
 		return
 	}
-	c2sc := c2s_serveconnbyte.New(
+	c2sc := c2s_serveconnbyte.NewWithStats(
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
-		DemuxReq2BytesAPIFnMap)
+		svr.apiStat,
+		svr.notiStat,
+		svr.errStat,
+		svr.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeWS(ctx, wsConn,
-		readTimeoutSec, writeTimeoutSec, gMarshalBodyFn)
+		readTimeoutSec, writeTimeoutSec, svr.marshalBodyFn)
 	wsConn.Close()
 }
 
-func serveTCP(ctx context.Context, port string) {
+func (svr *Server) serveTCP(ctx context.Context, port string) {
 	fmt.Printf("tcp server port=%v\n", port)
 	tcpaddr, err := net.ResolveTCPAddr("tcp", port)
 	if err != nil {
@@ -134,34 +189,28 @@ func serveTCP(ctx context.Context, port string) {
 				}
 				fmt.Printf("error %#v\n", err)
 			} else {
-				go serveTCPClient(ctx, conn)
+				go svr.serveTCPClient(ctx, conn)
 			}
 		}
 	}
 }
 
-func serveTCPClient(ctx context.Context, conn *net.TCPConn) {
-	c2sc := c2s_serveconnbyte.New(
+func (svr *Server) serveTCPClient(ctx context.Context, conn *net.TCPConn) {
+	c2sc := c2s_serveconnbyte.NewWithStats(
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
-		DemuxReq2BytesAPIFnMap)
+		svr.apiStat,
+		svr.notiStat,
+		svr.errStat,
+		svr.DemuxReq2BytesAPIFnMap)
 	c2sc.StartServeTCP(ctx, conn,
-		readTimeoutSec, writeTimeoutSec, gMarshalBodyFn)
+		readTimeoutSec, writeTimeoutSec, svr.marshalBodyFn)
 	conn.Close()
 }
 
 ///////////////////////////////////////////////////////////////
 
-var DemuxReq2BytesAPIFnMap = [...]func(
-	me interface{}, hd c2s_packet.Header, rbody []byte) (
-	c2s_packet.Header, interface{}, error){
-	c2s_idcmd.InvalidCmd: bytesAPIFn_ReqInvalidCmd,
-	c2s_idcmd.Login:      bytesAPIFn_ReqLogin,
-	c2s_idcmd.Heartbeat:  bytesAPIFn_ReqHeartbeat,
-	c2s_idcmd.Chat:       bytesAPIFn_ReqChat,
-} // DemuxReq2BytesAPIFnMap
-
-func bytesAPIFn_ReqInvalidCmd(
+func (svr *Server) bytesAPIFn_ReqInvalidCmd(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
 	// robj, err := gUnmarshalPacket(hd, rbody)
@@ -179,7 +228,7 @@ func bytesAPIFn_ReqInvalidCmd(
 	return hd, sendBody, nil
 }
 
-func bytesAPIFn_ReqLogin(
+func (svr *Server) bytesAPIFn_ReqLogin(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
 	// robj, err := gUnmarshalPacket(hd, rbody)
@@ -197,10 +246,10 @@ func bytesAPIFn_ReqLogin(
 	return hd, sendBody, nil
 }
 
-func bytesAPIFn_ReqHeartbeat(
+func (svr *Server) bytesAPIFn_ReqHeartbeat(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
-	robj, err := gUnmarshalPacket(hd, rbody)
+	robj, err := svr.unmarshalPacketFn(hd, rbody)
 	if err != nil {
 		return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
 	}
@@ -215,10 +264,10 @@ func bytesAPIFn_ReqHeartbeat(
 	return hd, sendBody, nil
 }
 
-func bytesAPIFn_ReqChat(
+func (svr *Server) bytesAPIFn_ReqChat(
 	me interface{}, hd c2s_packet.Header, rbody []byte) (
 	c2s_packet.Header, interface{}, error) {
-	robj, err := gUnmarshalPacket(hd, rbody)
+	robj, err := svr.unmarshalPacketFn(hd, rbody)
 	if err != nil {
 		return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
 	}
