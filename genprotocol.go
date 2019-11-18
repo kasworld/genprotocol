@@ -21,13 +21,6 @@ import (
 	"github.com/kasworld/genprotocol/genlib"
 )
 
-var (
-	g_ver       = flag.String("ver", "", "protocol version")
-	g_prefix    = flag.String("prefix", "", "protocol prefix")
-	g_basedir   = flag.String("basedir", "", "base directory")
-	g_statstype = flag.String("statstype", "", "stats element type, empty not generate")
-)
-
 type GenArgs struct {
 	GenComment string
 	Version    string
@@ -40,6 +33,10 @@ type GenArgs struct {
 }
 
 func loadGenArgs() (GenArgs, error) {
+	g_ver := flag.String("ver", "", "protocol version")
+	g_prefix := flag.String("prefix", "", "protocol prefix")
+	g_basedir := flag.String("basedir", "", "base directory")
+	g_statstype := flag.String("statstype", "", "stats element type, empty not generate")
 	flag.Parse()
 
 	if *g_prefix == "" {
@@ -86,7 +83,7 @@ func loadGenArgs() (GenArgs, error) {
 type MakeDest struct {
 	Postfix  string
 	Filename string
-	Fn       func(genArgs GenArgs, postfix string) (*bytes.Buffer, error)
+	Fn       func(genArgs GenArgs, postfix string) *bytes.Buffer
 }
 
 func main() {
@@ -128,8 +125,8 @@ func main() {
 	}
 	for _, v := range makeDatas {
 		os.MkdirAll(path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix), os.ModePerm)
-		buf, err := v.Fn(genArgs, v.Postfix)
-		genlib.SaveTo(buf, err, path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename))
+		buf := v.Fn(genArgs, v.Postfix)
+		genlib.SaveTo(buf, path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename))
 	}
 
 	if genArgs.StatsType != "" {
@@ -141,23 +138,23 @@ func main() {
 		for _, v := range dirToMake {
 			packagename := genArgs.Prefix + v[0]
 			os.MkdirAll(path.Join(genArgs.BaseDir, packagename+"_stats"), os.ModePerm)
-			buf, err := buildStatsCode(genArgs, packagename, v[1], genArgs.StatsType)
-			genlib.SaveTo(buf, err, path.Join(genArgs.BaseDir, packagename+"_stats", packagename+"_stats_gen.go"))
+			buf := buildStatsCode(genArgs, packagename, v[1], genArgs.StatsType)
+			genlib.SaveTo(buf, path.Join(genArgs.BaseDir, packagename+"_stats", packagename+"_stats_gen.go"))
 		}
 	}
 }
 
-func buildVersion(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildVersion(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
 	package %[1]s
 	const ProtocolVersion = "%[2]s"
 	`, genArgs.Prefix+postfix, genArgs.Version)
-	return &buf, nil
+	return &buf
 }
 
-func buildCommandEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildCommandEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -201,10 +198,10 @@ func buildCommandEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return v,b
 	}
 	`)
-	return &buf, nil
+	return &buf
 }
 
-func buildNotiEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildNotiEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -248,10 +245,10 @@ func buildNotiEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return v,b
 	}
 	`)
-	return &buf, nil
+	return &buf
 }
 
-func buildErrorEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildErrorEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -299,10 +296,10 @@ func buildErrorEnum(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return v,b
 	}
 	`)
-	return &buf, nil
+	return &buf
 }
 
-func buildConst(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -316,10 +313,10 @@ func buildConst(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	)
 	*/
 	`, genArgs.Prefix+postfix)
-	return &buf, nil
+	return &buf
 }
 
-func buildPacket(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -615,10 +612,10 @@ func buildPacket(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		}
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -645,10 +642,10 @@ func buildObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildMSGP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildMSGP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -731,10 +728,10 @@ func buildMSGP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	for _, v := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, unmarshalFunc, "Noti", v[0], genArgs.Prefix)
 	}
-	return &buf, nil
+	return &buf
 }
 
-func buildJSON(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildJSON(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -821,10 +818,10 @@ func buildJSON(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	for _, v := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, unmarshalFunc, "Noti", v[0], genArgs.Prefix)
 	}
-	return &buf, nil
+	return &buf
 }
 
-func buildGOB(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildGOB(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -909,10 +906,10 @@ func buildGOB(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 	for _, v := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, unmarshalFunc, "Noti", v[0], genArgs.Prefix)
 	}
-	return &buf, nil
+	return &buf
 }
 
-func buildRecvRspFnObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildRecvRspFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -939,10 +936,10 @@ func buildRecvRspFnObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, 
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -973,10 +970,10 @@ func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1004,10 +1001,10 @@ func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer,
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1039,10 +1036,10 @@ func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) (*bytes.Buffe
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1086,10 +1083,10 @@ func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, 
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1133,10 +1130,10 @@ func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) (*bytes.Buf
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
-	return &buf, nil
+	return &buf
 }
 
-func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1359,10 +1356,10 @@ func buildServeConnByte(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		}
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildConnTCP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildConnTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1473,10 +1470,10 @@ func buildConnTCP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		}
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildConnWasm(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1652,10 +1649,10 @@ func buildConnWasm(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		js.Global().Get("console").Call("error", fmt.Sprintf(format, v...))
 	}
 		`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildConnWSGorilla(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildConnWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1766,10 +1763,10 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		}
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildLoopWSGorilla(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1877,10 +1874,10 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) (*bytes.Buffer, error) 
 		return %[1]s_packet.NewRecvPacketBufferByData(rdata).GetHeaderBody()
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildLoopTCP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -1984,10 +1981,10 @@ func buildLoopTCP(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return err
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildPID2RspFn(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildPID2RspFn(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2028,10 +2025,10 @@ func buildPID2RspFn(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return fmt.Errorf("pid not found")
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildStatNoti(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildStatNoti(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2118,10 +2115,10 @@ func buildStatNoti(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return float64(ps.TotalByte) / float64(ps.Count)
 	}
 	`, genArgs.Prefix, '`')
-	return &buf, nil
+	return &buf
 }
 
-func buildStatCallAPI(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildStatCallAPI(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2321,10 +2318,10 @@ func buildStatCallAPI(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return 0.0
 	}
 	`, genArgs.Prefix, '`')
-	return &buf, nil
+	return &buf
 }
 
-func buildStatServeAPI(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildStatServeAPI(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2538,10 +2535,10 @@ func buildStatServeAPI(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return float64(sr.SendBytes) / float64(sr.SendCount)
 	}
 	`, genArgs.Prefix, '`')
-	return &buf, nil
+	return &buf
 }
 
-func buildStatAPIError(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildStatAPIError(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2625,10 +2622,10 @@ func buildStatAPIError(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return nil
 	}
 	`, genArgs.Prefix, '`')
-	return &buf, nil
+	return &buf
 }
 
-func buildAuthorize(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
+func buildAuthorize(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2696,10 +2693,10 @@ func buildAuthorize(genArgs GenArgs, postfix string) (*bytes.Buffer, error) {
 		return acidl[cmdid]
 	}
 	`, genArgs.Prefix)
-	return &buf, nil
+	return &buf
 }
 
-func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype string) (*bytes.Buffer, error) {
+func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
@@ -2789,5 +2786,5 @@ func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype 
 	)
 	`, pkgname, typename, '`', statstype)
 
-	return &buf, nil
+	return &buf
 }

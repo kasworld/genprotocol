@@ -54,11 +54,7 @@ func LoadEnumWithComment(filename string) ([][]string, error) {
 }
 
 // saveTo save go source with format, saved file may need goimport
-func SaveTo(outdata *bytes.Buffer, buferr error, outfilename string) error {
-	if buferr != nil {
-		fmt.Printf("fail %v %v\n", outfilename, buferr)
-		return buferr
-	}
+func SaveTo(outdata *bytes.Buffer, outfilename string) error {
 	src, err := format.Source(outdata.Bytes())
 	if err != nil {
 		fmt.Println(outdata)
