@@ -1366,6 +1366,21 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			return fmt.Errorf("Send channel full %%v", scb)
 		}
 	}
+	func (scb *ServeConnByte) SendNotiPacket(
+		cmd %[1]s_idnoti.NotiID, body interface{}) error {
+		err := scb.EnqueueSendPacket(%[1]s_packet.Packet{
+			%[1]s_packet.Header{
+				Cmd:      uint16(cmd),
+				FlowType: %[1]s_packet.Notification,
+			},
+			body,
+		})
+		if err != nil {
+			scb.Disconnect()
+		}
+		return err
+	}
+	
 	`, genArgs.Prefix)
 	return &buf
 }
