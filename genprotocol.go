@@ -1146,6 +1146,10 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	)
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
+	type CounterI interface {
+		Inc()
+	}
+
 	func (scb *ServeConnByte) String() string {
 		return fmt.Sprintf("ServeConnByte[SendCh:%%v/%%v]",
 			len(scb.sendCh), cap(scb.sendCh))
@@ -1160,7 +1164,9 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		apiStat     	 *%[1]s_statserveapi.StatServeAPI
 		notiStat         *%[1]s_statnoti.StatNotification
 		errorStat        *%[1]s_statapierror.StatAPIError
-	
+		sendCounter      CounterI
+		recvCounter      CounterI
+
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
 			%[1]s_packet.Header, interface{}, error)
@@ -1170,6 +1176,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		connData interface{},
 		sendBufferSize int,
 		authorCmdList *%[1]s_authorize.AuthorizedCmds,
+		sendCounter, recvCounter CounterI,
 		demuxReq2BytesAPIFnMap [%[1]s_idcmd.CommandID_Count]func(
 			me interface{}, hd %[1]s_packet.Header, rbody []byte) (
 			%[1]s_packet.Header, interface{}, error),
@@ -1181,6 +1188,8 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			apiStat:                %[1]s_statserveapi.New(),
 			notiStat:               %[1]s_statnoti.New(),
 			errorStat:              %[1]s_statapierror.New(),
+			sendCounter:            sendCounter,
+			recvCounter:            recvCounter,
 			authorCmdList:          authorCmdList,
 			demuxReq2BytesAPIFnMap: demuxReq2BytesAPIFnMap,
 		}
@@ -1194,6 +1203,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		connData interface{},
 		sendBufferSize int,
 		authorCmdList    *%[1]s_authorize.AuthorizedCmds,
+		sendCounter, recvCounter CounterI,
 		apiStat          *%[1]s_statserveapi.StatServeAPI,
 		notiStat         *%[1]s_statnoti.StatNotification,
 		errorStat        *%[1]s_statapierror.StatAPIError,
@@ -1208,6 +1218,8 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			apiStat:                apiStat,
 			notiStat:               notiStat,
 			errorStat:              errorStat,
+			sendCounter:            sendCounter,
+			recvCounter:            recvCounter,
 			authorCmdList:          authorCmdList,
 			demuxReq2BytesAPIFnMap: demuxReq2BytesAPIFnMap,
 		}
@@ -1300,6 +1312,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return returnerr
 	}
 	func (scb *ServeConnByte) handleSentPacket(header %[1]s_packet.Header) error {
+		scb.sendCounter.Inc()
 		switch header.FlowType {
 		default:
 			return fmt.Errorf("invalid packet type %%s %%v", scb, header)
@@ -1320,6 +1333,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return nil
 	}
 	func (scb *ServeConnByte) handleRecvPacket(rheader %[1]s_packet.Header, rbody []byte) error {
+		scb.recvCounter.Inc()
 		if rheader.FlowType != %[1]s_packet.Request {
 			return fmt.Errorf("Unexpected rheader packet type: %%v", rheader)
 		}

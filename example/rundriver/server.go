@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/kasworld/actpersec"
 	"github.com/kasworld/genprotocol/example/c2s_authorize"
 	"github.com/kasworld/genprotocol/example/c2s_error"
 	"github.com/kasworld/genprotocol/example/c2s_gob"
@@ -54,7 +55,11 @@ func main() {
 }
 
 type Server struct {
-	sendRecvStop           func()
+	sendRecvStop func()
+
+	SendStat *actpersec.ActPerSec `prettystring:"simple"`
+	RecvStat *actpersec.ActPerSec `prettystring:"simple"`
+
 	apiStat                *c2s_statserveapi.StatServeAPI
 	notiStat               *c2s_statnoti.StatNotification
 	errStat                *c2s_statapierror.StatAPIError
@@ -67,6 +72,9 @@ type Server struct {
 
 func NewServer(marshaltype string) *Server {
 	svr := &Server{
+		SendStat: actpersec.New(),
+		RecvStat: actpersec.New(),
+
 		apiStat:  c2s_statserveapi.New(),
 		notiStat: c2s_statnoti.New(),
 		errStat:  c2s_statapierror.New(),
@@ -117,7 +125,8 @@ func (svr *Server) Run(tcpport string, httpport string, httpfolder string) {
 		case <-ctx.Done():
 			return
 		case <-timerInfoTk.C:
-
+			svr.SendStat.UpdateLap()
+			svr.RecvStat.UpdateLap()
 		}
 	}
 }
@@ -154,6 +163,7 @@ func (svr *Server) serveWebSocketClient(ctx context.Context, w http.ResponseWrit
 		nil,
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
+		svr.SendStat, svr.RecvStat,
 		svr.apiStat,
 		svr.notiStat,
 		svr.errStat,
@@ -201,6 +211,7 @@ func (svr *Server) serveTCPClient(ctx context.Context, conn *net.TCPConn) {
 		nil,
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
+		svr.SendStat, svr.RecvStat,
 		svr.apiStat,
 		svr.notiStat,
 		svr.errStat,
