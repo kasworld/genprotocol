@@ -17,6 +17,7 @@ goimports -w example/c2s_handlenoti/fnbytestemplate_gen.go
 goimports -w example/c2s_handlereq/fnobjtemplate_gen.go
 goimports -w example/c2s_handlereq/fnbytestemplate_gen.go
 goimports -w example/c2s_serveconnbyte/serveconnbyte_gen.go
+goimports -w example/c2s_connmanager/connmanager_gen.go
 goimports -w example/c2s_conntcp/conntcp_gen.go
 goimports -w example/c2s_connwasm/connwasm_gen.go
 goimports -w example/c2s_connwsgorilla/connwsgorilla_gen.go

@@ -111,6 +111,7 @@ func main() {
 		MakeDest{"_handlenoti", "fnobjtemplate_gen.go", buildRecvNotiFnObjTemplate},
 		MakeDest{"_handlenoti", "fnbytestemplate_gen.go", buildRecvNotiFnBytesTemplate},
 		MakeDest{"_serveconnbyte", "serveconnbyte_gen.go", buildServeConnByte},
+		MakeDest{"_connmanager", "connmanager_gen.go", buildConnManager},
 		MakeDest{"_conntcp", "conntcp_gen.go", buildConnTCP},
 		MakeDest{"_connwasm", "connwasm_gen.go", buildConnWasm},
 		MakeDest{"_connwsgorilla", "connwsgorilla_gen.go", buildConnWSGorilla},
@@ -1426,6 +1427,66 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return err
 	}
 	
+	`, genArgs.Prefix)
+	return &buf
+}
+
+func buildConnManager(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	import (
+		"fmt"
+		"sync"
+	)
+	`, genArgs.Prefix+postfix)
+	fmt.Fprintf(&buf, `
+	type Manager struct {
+		mutex   sync.RWMutex
+		id2Conn map[string]*%[1]s_serveconnbyte.ServeConnByte
+	}
+	func New() *Manager {
+		rtn := &Manager{
+			id2Conn: make(map[string]*%[1]s_serveconnbyte.ServeConnByte),
+		}
+		return rtn
+	}
+	func (cm *Manager) Add(id string, c2sc *%[1]s_serveconnbyte.ServeConnByte) error {
+		cm.mutex.Lock()
+		defer cm.mutex.Unlock()
+		if cm.id2Conn[id] != nil {
+			return fmt.Errorf("already exist %%v", id)
+		}
+		cm.id2Conn[id] = c2sc
+		return nil
+	}
+	func (cm *Manager) Del(id string) error {
+		cm.mutex.Lock()
+		defer cm.mutex.Unlock()
+		if cm.id2Conn[id] == nil {
+			return fmt.Errorf("not exist %%v", id)
+		}
+		delete(cm.id2Conn, id)
+		return nil
+	}
+	func (cm *Manager) Get(id string) *%[1]s_serveconnbyte.ServeConnByte {
+		cm.mutex.RLock()
+		defer cm.mutex.RUnlock()
+		return cm.id2Conn[id]
+	}
+	func (cm *Manager) Len() int {
+		return len(cm.id2Conn)
+	}
+	func (cm *Manager) GetList() []*%[1]s_serveconnbyte.ServeConnByte {
+		rtn := make([]*%[1]s_serveconnbyte.ServeConnByte, 0, len(cm.id2Conn))
+		cm.mutex.RLock()
+		defer cm.mutex.RUnlock()
+		for _, v := range cm.id2Conn {
+			rtn = append(rtn, v)
+		}
+		return rtn
+	}
 	`, genArgs.Prefix)
 	return &buf
 }

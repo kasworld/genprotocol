@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kasworld/actpersec"
 	"github.com/kasworld/genprotocol/example/c2s_authorize"
+	"github.com/kasworld/genprotocol/example/c2s_connmanager"
 	"github.com/kasworld/genprotocol/example/c2s_error"
 	"github.com/kasworld/genprotocol/example/c2s_gob"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
@@ -34,6 +35,7 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_statapierror"
 	"github.com/kasworld/genprotocol/example/c2s_statnoti"
 	"github.com/kasworld/genprotocol/example/c2s_statserveapi"
+	"github.com/kasworld/uuidstr"
 )
 
 // service const
@@ -57,6 +59,8 @@ func main() {
 type Server struct {
 	sendRecvStop func()
 
+	connManager *c2s_connmanager.Manager
+
 	SendStat *actpersec.ActPerSec `prettystring:"simple"`
 	RecvStat *actpersec.ActPerSec `prettystring:"simple"`
 
@@ -72,12 +76,12 @@ type Server struct {
 
 func NewServer(marshaltype string) *Server {
 	svr := &Server{
-		SendStat: actpersec.New(),
-		RecvStat: actpersec.New(),
-
-		apiStat:  c2s_statserveapi.New(),
-		notiStat: c2s_statnoti.New(),
-		errStat:  c2s_statapierror.New(),
+		connManager: c2s_connmanager.New(),
+		SendStat:    actpersec.New(),
+		RecvStat:    actpersec.New(),
+		apiStat:     c2s_statserveapi.New(),
+		notiStat:    c2s_statnoti.New(),
+		errStat:     c2s_statapierror.New(),
 	}
 	svr.sendRecvStop = func() {
 		fmt.Printf("Too early sendRecvStop call\n")
@@ -159,8 +163,10 @@ func (svr *Server) serveWebSocketClient(ctx context.Context, w http.ResponseWrit
 		fmt.Printf("upgrade %v\n", err)
 		return
 	}
+
+	connID := uuidstr.New()
 	c2sc := c2s_serveconnbyte.NewWithStats(
-		nil,
+		connID,
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
 		svr.SendStat, svr.RecvStat,
@@ -168,9 +174,19 @@ func (svr *Server) serveWebSocketClient(ctx context.Context, w http.ResponseWrit
 		svr.notiStat,
 		svr.errStat,
 		svr.DemuxReq2BytesAPIFnMap)
+
+	// add to conn manager
+	svr.connManager.Add(connID, c2sc)
+
+	// start client service
 	c2sc.StartServeWS(ctx, wsConn,
 		readTimeoutSec, writeTimeoutSec, svr.marshalBodyFn)
+
+	// connection cleanup here
 	wsConn.Close()
+
+	// del from conn manager
+	svr.connManager.Del(connID)
 }
 
 func (svr *Server) serveTCP(ctx context.Context, port string) {
@@ -207,8 +223,10 @@ func (svr *Server) serveTCP(ctx context.Context, port string) {
 }
 
 func (svr *Server) serveTCPClient(ctx context.Context, conn *net.TCPConn) {
+
+	connID := uuidstr.New()
 	c2sc := c2s_serveconnbyte.NewWithStats(
-		nil,
+		connID,
 		sendBufferSize,
 		c2s_authorize.NewAllSet(),
 		svr.SendStat, svr.RecvStat,
@@ -216,9 +234,19 @@ func (svr *Server) serveTCPClient(ctx context.Context, conn *net.TCPConn) {
 		svr.notiStat,
 		svr.errStat,
 		svr.DemuxReq2BytesAPIFnMap)
+
+	// add to conn manager
+	svr.connManager.Add(connID, c2sc)
+
+	// start client service
 	c2sc.StartServeTCP(ctx, conn,
 		readTimeoutSec, writeTimeoutSec, svr.marshalBodyFn)
+
+	// connection cleanup here
 	conn.Close()
+
+	// del from conn manager
+	svr.connManager.Del(connID)
 }
 
 ///////////////////////////////////////////////////////////////
