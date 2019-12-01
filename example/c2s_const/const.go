@@ -2,8 +2,14 @@
 
 package c2s_const
 
+import "time"
+
 const (
 	// MaxBodyLen set to max body len, affect send/recv buffer size
-	MaxBodyLen           = 0xfffff
+	MaxBodyLen = 0xfffff
+	// PacketBufferPoolSize max size of pool packet buffer
 	PacketBufferPoolSize = 100
+
+	// ServerAPICallTimeOutDur api call watchdog timer
+	ServerAPICallTimeOutDur = time.Second * 2
 )

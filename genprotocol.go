@@ -310,6 +310,9 @@ func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
 		MaxBodyLen = 0xfffff
 		// PacketBufferPoolSize max size of pool packet buffer
 		PacketBufferPoolSize = 100
+
+		// ServerAPICallTimeOutDur api call watchdog timer
+		ServerAPICallTimeOutDur = time.Second * 2
 	)
 	*/
 	`, genArgs.Prefix+postfix)
@@ -1352,8 +1355,15 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			return err
 		}
 		statObj.BeforeAPICall()
-		fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
-		sheader, sbody, apierr := fn(scb, rheader, rbody)
+
+		// timeout api call
+		apiResult := scb.callAPI_timed(rheader, rbody)
+		sheader, sbody, apierr := apiResult.header, apiResult.body, apiResult.err
+
+		// no timeout api call
+		//fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
+		//sheader, sbody, apierr := fn(scb, rheader, rbody)
+
 		statObj.AfterAPICall()
 
 		scb.errorStat.Inc(%[1]s_idcmd.CommandID(rheader.Cmd), sheader.ErrorCode)
@@ -1371,6 +1381,27 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			Body:   sbody,
 		}
 		return scb.EnqueueSendPacket(rpk)
+	}
+	type callAPIResult struct {
+		header %[1]s_packet.Header
+		body   interface{}
+		err    error
+	}
+	func (scb *ServeConnByte) callAPI_timed(rheader %[1]s_packet.Header, rbody []byte) callAPIResult {
+		rtnCh := make(chan callAPIResult, 1)
+		go func(rtnCh chan callAPIResult, rheader %[1]s_packet.Header, rbody []byte) {
+			fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
+			sheader, sbody, apierr := fn(scb, rheader, rbody)
+			rtnCh <- callAPIResult{sheader, sbody, apierr}
+		}(rtnCh, rheader, rbody)
+		timeoutTk := time.NewTicker(%[1]s_const.ServerAPICallTimeOutDur)
+		defer timeoutTk.Stop()
+		select {
+		case apiResult := <-rtnCh:
+			return apiResult
+		case <-timeoutTk.C:
+			return callAPIResult{rheader, nil, fmt.Errorf("APICall Timeout %%v", rheader)}
+		}
 	}
 	func (scb *ServeConnByte) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
 		select {
