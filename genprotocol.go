@@ -174,7 +174,7 @@ func buildCommandEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	CommandID_Count int = iota 
 	)
-	var _CommandID_str = map[CommandID]string{
+	var _CommandID2string = [CommandID_Count]string{
 	`)
 	for _, v := range genArgs.CmdIDs {
 		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
@@ -182,8 +182,8 @@ func buildCommandEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	}
 	func (e CommandID) String() string {
-		if s, exist := _CommandID_str[e]; exist {
-			return s
+		if e >=0 && e < CommandID(CommandID_Count) {
+			return _CommandID2string[e]
 		}
 		return fmt.Sprintf("CommandID%%d", uint16(e))
 	}
@@ -221,7 +221,7 @@ func buildNotiEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	NotiID_Count int = iota 
 	)
-	var _NotiID_str = map[NotiID]string{
+	var _NotiID2string = [NotiID_Count]string{
 	`)
 	for _, v := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
@@ -229,8 +229,8 @@ func buildNotiEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	}
 	func (e NotiID) String() string {
-		if s, exist := _NotiID_str[e]; exist {
-			return s
+		if e >=0 && e < NotiID(NotiID_Count) {
+			return _NotiID2string[e]
 		}
 		return fmt.Sprintf("NotiID%%d", uint16(e))
 	}
@@ -268,7 +268,7 @@ func buildErrorEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	ErrorCode_Count int = iota 
 	)
-	var _ErrorCode_str = map[ErrorCode]string{
+	var _ErrorCode2string = [ErrorCode_Count]string{
 	`)
 	for _, v := range genArgs.ErrorIDs {
 		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
@@ -276,8 +276,8 @@ func buildErrorEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	}
 	func (e ErrorCode) String() string {
-		if s, exist := _ErrorCode_str[e]; exist {
-			return s
+		if e >=0 && e < ErrorCode(ErrorCode_Count) {
+			return _ErrorCode2string[e]
 		}
 		return fmt.Sprintf("ErrorCode%%d", uint16(e))
 	}
