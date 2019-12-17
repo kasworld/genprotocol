@@ -111,7 +111,7 @@ func main() {
 		MakeDest{"_handlenoti", "fnobjtemplate_gen.go", buildRecvNotiFnObjTemplate},
 		MakeDest{"_handlenoti", "fnbytestemplate_gen.go", buildRecvNotiFnBytesTemplate},
 		MakeDest{"_serveconnbyte", "serveconnbyte_gen.go", buildServeConnByte},
-		MakeDest{"_connmanager", "connmanager_gen.go", buildConnManager},
+		MakeDest{"_connbytemanager", "connbytemanager_gen.go", buildConnByteManager},
 		MakeDest{"_conntcp", "conntcp_gen.go", buildConnTCP},
 		MakeDest{"_connwasm", "connwasm_gen.go", buildConnWasm},
 		MakeDest{"_connwsgorilla", "connwsgorilla_gen.go", buildConnWSGorilla},
@@ -1431,7 +1431,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	return &buf
 }
 
-func buildConnManager(genArgs GenArgs, postfix string) *bytes.Buffer {
+func buildConnByteManager(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
