@@ -51,7 +51,7 @@ prefix 는 genprotocol 에 prefix 인자로 준 값
 생성이 끝난 코드들은 import code가 제대로 되어 있지 않으니 
 goimports 등으로 정리 해주어야 합니다. 
 
-실행하면 goimports 를 해야할 파일 목록을 찍어 줍니다. 
+-verbose 인자를 주고 실행하면 goimports 를 해야할 파일 목록을 찍어 줍니다. 
 	
 	example.sh 를 실행한 결과 
 	goimports -w example/c2s_version/version_gen.go

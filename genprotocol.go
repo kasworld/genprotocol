@@ -27,12 +27,14 @@ type GenArgs struct {
 	BaseDir    string
 	Prefix     string
 	StatsType  string
+	Verbose    bool
 	CmdIDs     [][]string
 	NotiIDs    [][]string
 	ErrorIDs   [][]string
 }
 
 func loadGenArgs() (GenArgs, error) {
+	g_verbose := flag.Bool("verbose", false, "show goimports file")
 	g_ver := flag.String("ver", "", "protocol version")
 	g_prefix := flag.String("prefix", "", "protocol prefix")
 	g_basedir := flag.String("basedir", "", "base directory")
@@ -73,6 +75,7 @@ func loadGenArgs() (GenArgs, error) {
 		BaseDir:    *g_basedir,
 		Prefix:     *g_prefix,
 		StatsType:  *g_statstype,
+		Verbose:    *g_verbose,
 		CmdIDs:     cmddata,
 		NotiIDs:    notidata,
 		ErrorIDs:   errordata,
@@ -127,7 +130,9 @@ func main() {
 	for _, v := range makeDatas {
 		os.MkdirAll(path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix), os.ModePerm)
 		buf := v.Fn(genArgs, v.Postfix)
-		genlib.SaveTo(buf, path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename))
+		genlib.SaveTo(buf,
+			path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename),
+			genArgs.Verbose)
 	}
 
 	if genArgs.StatsType != "" {
@@ -140,7 +145,10 @@ func main() {
 			packagename := genArgs.Prefix + v[0]
 			os.MkdirAll(path.Join(genArgs.BaseDir, packagename+"_stats"), os.ModePerm)
 			buf := buildStatsCode(genArgs, packagename, v[1], genArgs.StatsType)
-			genlib.SaveTo(buf, path.Join(genArgs.BaseDir, packagename+"_stats", packagename+"_stats_gen.go"))
+			genlib.SaveTo(buf,
+				path.Join(genArgs.BaseDir, packagename+"_stats", packagename+"_stats_gen.go"),
+				genArgs.Verbose,
+			)
 		}
 	}
 }
