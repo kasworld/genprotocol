@@ -182,19 +182,28 @@ func buildCommandEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	CommandID_Count int = iota 
 	)
-	var _CommandID2string = [CommandID_Count]string{
+	var _CommandID2string = [CommandID_Count][2]string{
 	`)
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
+		fmt.Fprintf(&buf, "%v : {\"%v\",\"%v\" },\n", v[0], v[0], v[1])
 	}
 	fmt.Fprintf(&buf, `
 	}
 	func (e CommandID) String() string {
 		if e >=0 && e < CommandID(CommandID_Count) {
-			return _CommandID2string[e]
+			return _CommandID2string[e][0]
 		}
 		return fmt.Sprintf("CommandID%%d", uint16(e))
 	}
+
+	func (e CommandID) CommentString() string {
+		if e >=0 && e < CommandID(CommandID_Count) {
+			return _CommandID2string[e][1]
+		}
+		return ""
+	}
+
+
 	var _string2CommandID = map[string]CommandID{
 	`)
 	for _, v := range genArgs.CmdIDs {
@@ -229,19 +238,26 @@ func buildNotiEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	NotiID_Count int = iota 
 	)
-	var _NotiID2string = [NotiID_Count]string{
+	var _NotiID2string = [NotiID_Count][2]string{
 	`)
 	for _, v := range genArgs.NotiIDs {
-		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
+		fmt.Fprintf(&buf, "%v : {\"%v\",\"%v\" },\n", v[0], v[0], v[1])
 	}
 	fmt.Fprintf(&buf, `
 	}
 	func (e NotiID) String() string {
 		if e >=0 && e < NotiID(NotiID_Count) {
-			return _NotiID2string[e]
+			return _NotiID2string[e][0]
 		}
 		return fmt.Sprintf("NotiID%%d", uint16(e))
 	}
+	func (e NotiID) CommentString() string {
+		if e >=0 && e < NotiID(NotiID_Count) {
+			return _NotiID2string[e][1]
+		}
+		return ""
+	}
+
 	var _string2NotiID = map[string]NotiID{
 	`)
 	for _, v := range genArgs.NotiIDs {
@@ -276,19 +292,26 @@ func buildErrorEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	ErrorCode_Count int = iota 
 	)
-	var _ErrorCode2string = [ErrorCode_Count]string{
+	var _ErrorCode2string = [ErrorCode_Count][2]string{
 	`)
 	for _, v := range genArgs.ErrorIDs {
-		fmt.Fprintf(&buf, "%v : \"%v\", \n", v[0], v[0])
+		fmt.Fprintf(&buf, "%v : {\"%v\",\"%v\" },\n", v[0], v[0], v[1])
 	}
 	fmt.Fprintf(&buf, `
 	}
 	func (e ErrorCode) String() string {
 		if e >=0 && e < ErrorCode(ErrorCode_Count) {
-			return _ErrorCode2string[e]
+			return _ErrorCode2string[e][0]
 		}
 		return fmt.Sprintf("ErrorCode%%d", uint16(e))
 	}
+	func (e ErrorCode) CommentString() string {
+		if e >=0 && e < ErrorCode(ErrorCode_Count) {
+			return _ErrorCode2string[e][1]
+		}
+		return ""
+	}
+
 	// implement error interface
 	func (e ErrorCode) Error() string {
 		return "%[1]s." + e.String()
