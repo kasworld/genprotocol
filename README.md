@@ -16,9 +16,6 @@ tower server - ground server
 
 의 2종의 protocol이 필요하고 사실상 비슷한데 조금 다른 코드들이 서로 구별 되어 쓰입니다. 
 
-## websocket 을 사용하려면 
-
-	go get github.com/gorilla/websocket
 
 
 ## 사용 법 
@@ -39,7 +36,7 @@ ver : protocol의 version ( protocol 마다 버전이 다를 수 있습니다. )
 
 prefix : 각 protocol을 구별하기 위한 prefix 
 
-basedir : protocol code가 생성될 기본 dir
+basedir : protocol code가 생성될 기본 폴더, 여기서 prefix_*.enum 을 읽습니다. 
 
 ## example/rundriver 디렉토리 
 
@@ -50,6 +47,8 @@ websocket server/client
 
 ## genprotocol에서 읽어 들이는 파일들 
 
+	인자로준 basedir 폴더내에서 찾습니다. 
+	
 	각 라인의 첫 단어가 enum 이고 space 로 분리된 뒷 부분은 생성된 코드의 comment가 된다. 
 	# 으로 시작하는 라인은 무시(comment취급)
 	prefix_command.enum : request/response packet 용 command id 목록 
@@ -253,3 +252,7 @@ prefix_idnoti_stats : elementtype을 구성요소로한 simple notiid 통계 (ge
 	생성하는 파일 
 	prefix_idnoti_stats_gen.go	
 
+
+## websocket 을 사용하려면 
+
+	go get github.com/gorilla/websocket
