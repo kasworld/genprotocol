@@ -51,19 +51,19 @@ func loadGenArgs() (GenArgs, error) {
 		fmt.Println("base dir not set")
 	}
 
-	cmddatafile := path.Join(*g_basedir, *g_prefix+"_gendata", "command.data")
+	cmddatafile := path.Join(*g_basedir, *g_prefix+"_command.enum")
 	cmddata, err := genlib.LoadEnumWithComment(cmddatafile)
 	if err != nil {
 		fmt.Printf("fail to load %v %v\n", cmddatafile, err)
 		return GenArgs{}, err
 	}
-	notidatafile := path.Join(*g_basedir, *g_prefix+"_gendata", "noti.data")
+	notidatafile := path.Join(*g_basedir, *g_prefix+"_noti.enum")
 	notidata, err := genlib.LoadEnumWithComment(notidatafile)
 	if err != nil {
 		fmt.Printf("fail to load %v %v\n", notidatafile, err)
 		return GenArgs{}, err
 	}
-	errordatafile := path.Join(*g_basedir, *g_prefix+"_gendata", "error.data")
+	errordatafile := path.Join(*g_basedir, *g_prefix+"_error.enum")
 	errordata, err := genlib.LoadEnumWithComment(errordatafile)
 	if err != nil {
 		fmt.Printf("fail to load %v %v\n", errordatafile, err)

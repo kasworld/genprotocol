@@ -44,6 +44,15 @@ tcp server/client,
 websocket server/client 
 예제 입니다. 
 
+## genprotocol에서 읽어 들이는 파일들 
+
+	각 라인의 첫 단어가 enum 이고 space 로 분리된 뒷 부분은 생성된 코드의 comment가 된다. 
+	# 으로 시작하는 라인은 무시(comment취급)
+	prefix_command.enum : request/response packet 용 command id 목록 
+	prefix_noti.enum    : notification packet 용 noti id 목록 
+	prefix_error.enum   : error code 목록 
+
+
 ## 생성되는 go package (디렉토리)
 
 prefix 는 genprotocol 에 prefix 인자로 준 값 
@@ -89,14 +98,6 @@ goimports 등으로 정리 해주어야 합니다.
 	goimports -w example/c2s_idcmd_stats/c2s_idcmd_stats_gen.go
 	goimports -w example/c2s_idnoti_stats/c2s_idnoti_stats_gen.go
 
-
-prefix_gendata : genprotocol에서 읽어 들이는 파일들 
-
-	각 라인의 첫 단어가 enum 이고 space 로 분리된 뒷 부분은 생성된 코드의 comment가 된다. 
-	# 으로 시작하는 라인은 무시(comment취급)
-	command.data : request/response packet 용 command id 목록 
-	noti.data    : notification packet 용 noti id 목록 
-	error.data   : error code 목록 
 
 
 prefix_obj : protocol struct 들 (packet body)
