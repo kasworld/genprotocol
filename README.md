@@ -16,6 +16,10 @@ tower server - ground server
 
 의 2종의 protocol이 필요하고 사실상 비슷한데 조금 다른 코드들이 서로 구별 되어 쓰입니다. 
 
+## websocket 을 사용하려면 
+
+	go get github.com/gorilla/websocket
+
 
 ## 사용 법 
 위 와 같은 경우 
