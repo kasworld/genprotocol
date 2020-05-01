@@ -2900,6 +2900,36 @@ func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype 
 		return es[e]
 	}
 	
+	// Iter return true if iter stop, return false if iter all
+	// fn return true to stop iter
+	func (es %[2]sStat) Iter(fn func(i %[1]s.%[2]s, v %[4]s) bool) bool {
+		for i, v := range es {
+			if fn(%[1]s.%[2]s(i), v) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// VectorAdd add element to element
+	func (es %[2]sStat) VectorAdd(arg %[2]sStat) %[2]sStat {
+		var rtn %[2]sStat
+		for i, v := range es {
+			rtn[i] = v + arg[i]
+		}
+		return rtn
+	}
+	
+	// VectorSub sub element to element
+	func (es %[2]sStat) VectorSub(arg %[2]sStat) %[2]sStat {
+		var rtn %[2]sStat
+		for i, v := range es {
+			rtn[i] = v - arg[i]
+		}
+		return rtn
+	}
+
+
 	func (es *%[2]sStat) ToWeb(w http.ResponseWriter, r *http.Request) error {
 		tplIndex, err := template.New("index").Funcs(IndexFn).Parse(%[3]c
 		<html>

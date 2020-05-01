@@ -39,6 +39,35 @@ func (es *CommandIDStat) Get(e c2s_idcmd.CommandID) int {
 	return es[e]
 }
 
+// Iter return true if iter stop, return false if iter all
+// fn return true to stop iter
+func (es CommandIDStat) Iter(fn func(i c2s_idcmd.CommandID, v int) bool) bool {
+	for i, v := range es {
+		if fn(c2s_idcmd.CommandID(i), v) {
+			return true
+		}
+	}
+	return false
+}
+
+// VectorAdd add element to element
+func (es CommandIDStat) VectorAdd(arg CommandIDStat) CommandIDStat {
+	var rtn CommandIDStat
+	for i, v := range es {
+		rtn[i] = v + arg[i]
+	}
+	return rtn
+}
+
+// VectorSub sub element to element
+func (es CommandIDStat) VectorSub(arg CommandIDStat) CommandIDStat {
+	var rtn CommandIDStat
+	for i, v := range es {
+		rtn[i] = v - arg[i]
+	}
+	return rtn
+}
+
 func (es *CommandIDStat) ToWeb(w http.ResponseWriter, r *http.Request) error {
 	tplIndex, err := template.New("index").Funcs(IndexFn).Parse(`
 		<html>
