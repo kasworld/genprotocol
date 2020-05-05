@@ -2874,7 +2874,7 @@ func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype 
 
 	fmt.Fprintf(&buf, `
 	type %[2]sStat [%[1]s.%[2]s_Count]%[4]s
-	func (es *%[2]sStat) String() string {
+	func (es %[2]sStat) String() string {
 		var buf bytes.Buffer
 		fmt.Fprintf(&buf, "%[2]sStats[")
 		for i, v := range es {
@@ -2896,7 +2896,7 @@ func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype 
 			es[e]=v
 		}
 	}
-	func (es *%[2]sStat) Get(e %[1]s.%[2]s) %[4]s {
+	func (es %[2]sStat) Get(e %[1]s.%[2]s) %[4]s {
 		return es[e]
 	}
 	
@@ -2930,7 +2930,7 @@ func buildStatsCode(genArgs GenArgs, pkgname string, typename string, statstype 
 	}
 
 
-	func (es *%[2]sStat) ToWeb(w http.ResponseWriter, r *http.Request) error {
+	func (es %[2]sStat) ToWeb(w http.ResponseWriter, r *http.Request) error {
 		tplIndex, err := template.New("index").Funcs(IndexFn).Parse(%[3]c
 		<html>
 		<head>
