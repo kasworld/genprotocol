@@ -5,13 +5,15 @@ package c2s_handlersp
 /* bytes base demux fn map template
 
 var DemuxRsp2BytesFnMap = [...]func(me interface{}, hd c2s_packet.Header, rbody []byte) error {
-c2s_idcmd.InvalidCmd : bytesRecvRspFn_InvalidCmd,
-c2s_idcmd.Login : bytesRecvRspFn_Login,
-c2s_idcmd.Heartbeat : bytesRecvRspFn_Heartbeat,
-c2s_idcmd.Chat : bytesRecvRspFn_Chat,
+c2s_idcmd.InvalidCmd : bytesRecvRspFn_InvalidCmd, // InvalidCmd not used
+c2s_idcmd.Login : bytesRecvRspFn_Login, // Login make session with nickname and enter stage
+c2s_idcmd.Heartbeat : bytesRecvRspFn_Heartbeat, // Heartbeat prevent connection timeout
+c2s_idcmd.Chat : bytesRecvRspFn_Chat, // Chat chat to stage
+c2s_idcmd.Act : bytesRecvRspFn_Act, // Act send user action
 
 }
 
+	// InvalidCmd not used
 	func bytesRecvRspFn_InvalidCmd(me interface{}, hd c2s_packet.Header, rbody []byte) error {
 		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
@@ -24,6 +26,7 @@ c2s_idcmd.Chat : bytesRecvRspFn_Chat,
 		return fmt.Errorf("Not implemented %v", recved)
 	}
 
+	// Login make session with nickname and enter stage
 	func bytesRecvRspFn_Login(me interface{}, hd c2s_packet.Header, rbody []byte) error {
 		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
@@ -36,6 +39,7 @@ c2s_idcmd.Chat : bytesRecvRspFn_Chat,
 		return fmt.Errorf("Not implemented %v", recved)
 	}
 
+	// Heartbeat prevent connection timeout
 	func bytesRecvRspFn_Heartbeat(me interface{}, hd c2s_packet.Header, rbody []byte) error {
 		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
@@ -48,12 +52,26 @@ c2s_idcmd.Chat : bytesRecvRspFn_Chat,
 		return fmt.Errorf("Not implemented %v", recved)
 	}
 
+	// Chat chat to stage
 	func bytesRecvRspFn_Chat(me interface{}, hd c2s_packet.Header, rbody []byte) error {
 		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
 			return  fmt.Errorf("Packet type miss match %v", rbody)
 		}
 		recved , ok := robj.(*c2s_obj.RspChat_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %v", robj )
+		}
+		return fmt.Errorf("Not implemented %v", recved)
+	}
+
+	// Act send user action
+	func bytesRecvRspFn_Act(me interface{}, hd c2s_packet.Header, rbody []byte) error {
+		robj, err := c2s_json.UnmarshalPacket(hd, rbody)
+		if err != nil {
+			return  fmt.Errorf("Packet type miss match %v", rbody)
+		}
+		recved , ok := robj.(*c2s_obj.RspAct_data)
 		if !ok {
 			return fmt.Errorf("packet mismatch %v", robj )
 		}

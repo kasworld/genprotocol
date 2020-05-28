@@ -6,19 +6,21 @@ import "fmt"
 
 type CommandID uint16 // use in packet header, DO NOT CHANGE
 const (
-	InvalidCmd CommandID = iota //
-	Login                       //
-	Heartbeat                   //
-	Chat                        //
+	InvalidCmd CommandID = iota // not used
+	Login                       // make session with nickname and enter stage
+	Heartbeat                   // prevent connection timeout
+	Chat                        // chat to stage
+	Act                         // send user action
 
 	CommandID_Count int = iota
 )
 
 var _CommandID2string = [CommandID_Count][2]string{
-	InvalidCmd: {"InvalidCmd", ""},
-	Login:      {"Login", ""},
-	Heartbeat:  {"Heartbeat", ""},
-	Chat:       {"Chat", ""},
+	InvalidCmd: {"InvalidCmd", "not used"},
+	Login:      {"Login", "make session with nickname and enter stage"},
+	Heartbeat:  {"Heartbeat", "prevent connection timeout"},
+	Chat:       {"Chat", "chat to stage"},
+	Act:        {"Act", "send user action"},
 }
 
 func (e CommandID) String() string {
@@ -40,6 +42,7 @@ var _string2CommandID = map[string]CommandID{
 	"Login":      Login,
 	"Heartbeat":  Heartbeat,
 	"Chat":       Chat,
+	"Act":        Act,
 }
 
 func String2CommandID(s string) (CommandID, bool) {

@@ -1,6 +1,6 @@
-None
-InvalidDirection
-ActionProhibited
-ObjectNotFound
-ActionChaned
-ActionCanceled
+None no error
+InvalidDirection direction not valid
+ActionProhibited cannot act 
+ObjectNotFound object not found 
+ActionChaned server change action 
+ActionCanceled server cancel action 

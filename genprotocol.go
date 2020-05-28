@@ -660,20 +660,23 @@ func buildObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 
 	for _, f := range genArgs.CmdIDs {
 		fmt.Fprintf(&buf, `
+		// %[2]s %[3]s
 		type Req%[2]s_data struct {
-			Dummy uint8
+			Dummy uint8 // change as you need 
 		}
+		// %[2]s %[3]s
 		type Rsp%[2]s_data struct {
-			Dummy uint8
+			Dummy uint8 // change as you need 
 		}
-		`, genArgs.Prefix, f[0])
+		`, genArgs.Prefix, f[0], f[1])
 	}
 	for _, f := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, `
+		// %[1]s %[2]s
 		type Noti%[1]s_data struct {
-			Dummy uint8
+			Dummy uint8 // change as you need 
 		}
-		`, f[0])
+		`, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
@@ -955,11 +958,13 @@ func buildRecvRspFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		"\nvar DemuxRsp2ObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
 		genArgs.Prefix)
 	for _, f := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : objRecvRspFn_%[2]s,\n", genArgs.Prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : objRecvRspFn_%[2]s, // %[2]s %[3]s \n",
+			genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
 	for _, f := range genArgs.CmdIDs {
 		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s 
 	func objRecvRspFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
 		robj , ok := body.(*%[1]s_obj.Rsp%[2]s_data)
 		if !ok {
@@ -967,7 +972,7 @@ func buildRecvRspFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		return fmt.Errorf("Not implemented %%v", robj)
 	}
-	`, genArgs.Prefix, f[0])
+	`, genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
@@ -985,11 +990,13 @@ func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer 
 		"\nvar DemuxRsp2BytesFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {\n",
 		genArgs.Prefix)
 	for _, f := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : bytesRecvRspFn_%[2]s,\n", genArgs.Prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : bytesRecvRspFn_%[2]s, // %[2]s %[3]s \n",
+			genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
 	for _, f := range genArgs.CmdIDs {
 		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
 	func bytesRecvRspFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
 		robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
@@ -1001,7 +1008,7 @@ func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer 
 		}
 		return fmt.Errorf("Not implemented %%v", recved)
 	}
-	`, genArgs.Prefix, f[0])
+	`, genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
@@ -1020,11 +1027,13 @@ func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		"\nvar DemuxNoti2ObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
 		genArgs.Prefix)
 	for _, f := range genArgs.NotiIDs {
-		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : objRecvNotiFn_%[2]s,\n", genArgs.Prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : objRecvNotiFn_%[2]s, // %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
 	for _, f := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
 	func objRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
 		robj , ok := body.(*%[1]s_obj.Noti%[2]s_data)
 		if !ok {
@@ -1032,7 +1041,7 @@ func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		return fmt.Errorf("Not implemented %%v", robj)
 	}
-	`, genArgs.Prefix, f[0])
+	`, genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
@@ -1051,11 +1060,13 @@ func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer
 		"\nvar DemuxNoti2ByteFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {\n",
 		genArgs.Prefix)
 	for _, f := range genArgs.NotiIDs {
-		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : bytesRecvNotiFn_%[2]s,\n", genArgs.Prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : bytesRecvNotiFn_%[2]s,// %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, "\n}\n")
 	for _, f := range genArgs.NotiIDs {
 		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
 	func bytesRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
 		robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
 		if err != nil {
@@ -1067,7 +1078,7 @@ func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer
 		}
 		return fmt.Errorf("Not implemented %%v", recved)
 	}
-	`, genArgs.Prefix, f[0])
+	`, genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
@@ -1088,12 +1099,14 @@ func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		%[1]s_packet.Header, interface{}, error){
 	`, genArgs.Prefix)
 	for _, f := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: Req2ObjAPI_%[2]s,\n", genArgs.Prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: Req2ObjAPI_%[2]s,// %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, "\n}   // DemuxReq2ObjAPIFnMap\n")
 
 	for _, f := range genArgs.CmdIDs {
 		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
 	func Req2ObjAPI_%[2]s(
 		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
 		%[1]s_packet.Header, interface{},  error) {
@@ -1104,6 +1117,7 @@ func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		rhd, rsp, err := objAPIFn_Req%[2]s(me, hd, req)
 		return rhd, rsp, err
 	}
+	// %[2]s %[3]s
 	func objAPIFn_Req%[2]s(
 		me interface{}, hd %[1]s_packet.Header, robj *%[1]s_obj.Req%[2]s_data) (
 		%[1]s_packet.Header, *%[1]s_obj.Rsp%[2]s_data, error) {
@@ -1114,7 +1128,7 @@ func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		return sendHeader, sendBody, nil
 	}
-		`, genArgs.Prefix, f[0])
+		`, genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
@@ -1135,12 +1149,14 @@ func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) *bytes.Buff
 		%[1]s_packet.Header, interface{}, error){
 	`, genArgs.Prefix)
 	for _, f := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: bytesAPIFn_Req%[2]s,\n", genArgs.Prefix, f[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: bytesAPIFn_Req%[2]s,// %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, "\n}   // DemuxReq2BytesAPIFnMap\n")
 
 	for _, f := range genArgs.CmdIDs {
 		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s		
 	func bytesAPIFn_Req%[2]s(
 		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
 		%[1]s_packet.Header, interface{}, error) {
@@ -1161,7 +1177,7 @@ func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) *bytes.Buff
 		}
 		return sendHeader, sendBody, nil
 	}
-		`, genArgs.Prefix, f[0])
+		`, genArgs.Prefix, f[0], f[1])
 	}
 	fmt.Fprintf(&buf, `
 	*/`)

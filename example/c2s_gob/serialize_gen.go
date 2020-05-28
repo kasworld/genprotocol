@@ -53,6 +53,7 @@ var ReqUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface
 	c2s_idcmd.Login:      unmarshal_ReqLogin,
 	c2s_idcmd.Heartbeat:  unmarshal_ReqHeartbeat,
 	c2s_idcmd.Chat:       unmarshal_ReqChat,
+	c2s_idcmd.Act:        unmarshal_ReqAct,
 }
 
 var RspUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface{}, error){
@@ -60,6 +61,7 @@ var RspUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface
 	c2s_idcmd.Login:      unmarshal_RspLogin,
 	c2s_idcmd.Heartbeat:  unmarshal_RspHeartbeat,
 	c2s_idcmd.Chat:       unmarshal_RspChat,
+	c2s_idcmd.Act:        unmarshal_RspAct,
 }
 
 var NotiUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface{}, error){
@@ -124,6 +126,22 @@ func unmarshal_ReqChat(h c2s_packet.Header, bodyData []byte) (interface{}, error
 
 func unmarshal_RspChat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.RspChat_data
+	network := bytes.NewBuffer(bodyData)
+	dec := gob.NewDecoder(network)
+	err := dec.Decode(&args)
+	return &args, err
+}
+
+func unmarshal_ReqAct(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+	var args c2s_obj.ReqAct_data
+	network := bytes.NewBuffer(bodyData)
+	dec := gob.NewDecoder(network)
+	err := dec.Decode(&args)
+	return &args, err
+}
+
+func unmarshal_RspAct(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+	var args c2s_obj.RspAct_data
 	network := bytes.NewBuffer(bodyData)
 	dec := gob.NewDecoder(network)
 	err := dec.Decode(&args)

@@ -6,23 +6,23 @@ import "fmt"
 
 type ErrorCode uint16 // use in packet header, DO NOT CHANGE
 const (
-	None             ErrorCode = iota //
-	InvalidDirection                  //
-	ActionProhibited                  //
-	ObjectNotFound                    //
-	ActionChaned                      //
-	ActionCanceled                    //
+	None             ErrorCode = iota // no error
+	InvalidDirection                  // direction not valid
+	ActionProhibited                  // cannot act
+	ObjectNotFound                    // object not found
+	ActionChaned                      // server change action
+	ActionCanceled                    // server cancel action
 
 	ErrorCode_Count int = iota
 )
 
 var _ErrorCode2string = [ErrorCode_Count][2]string{
-	None:             {"None", ""},
-	InvalidDirection: {"InvalidDirection", ""},
-	ActionProhibited: {"ActionProhibited", ""},
-	ObjectNotFound:   {"ObjectNotFound", ""},
-	ActionChaned:     {"ActionChaned", ""},
-	ActionCanceled:   {"ActionCanceled", ""},
+	None:             {"None", "no error"},
+	InvalidDirection: {"InvalidDirection", "direction not valid"},
+	ActionProhibited: {"ActionProhibited", "cannot act"},
+	ObjectNotFound:   {"ObjectNotFound", "object not found"},
+	ActionChaned:     {"ActionChaned", "server change action"},
+	ActionCanceled:   {"ActionCanceled", "server cancel action"},
 }
 
 func (e ErrorCode) String() string {

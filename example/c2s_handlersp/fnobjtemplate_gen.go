@@ -5,13 +5,15 @@ package c2s_handlersp
 /* obj base demux fn map template
 
 var DemuxRsp2ObjFnMap = [...]func(me interface{}, hd c2s_packet.Header, body interface{}) error {
-c2s_idcmd.InvalidCmd : objRecvRspFn_InvalidCmd,
-c2s_idcmd.Login : objRecvRspFn_Login,
-c2s_idcmd.Heartbeat : objRecvRspFn_Heartbeat,
-c2s_idcmd.Chat : objRecvRspFn_Chat,
+c2s_idcmd.InvalidCmd : objRecvRspFn_InvalidCmd, // InvalidCmd not used
+c2s_idcmd.Login : objRecvRspFn_Login, // Login make session with nickname and enter stage
+c2s_idcmd.Heartbeat : objRecvRspFn_Heartbeat, // Heartbeat prevent connection timeout
+c2s_idcmd.Chat : objRecvRspFn_Chat, // Chat chat to stage
+c2s_idcmd.Act : objRecvRspFn_Act, // Act send user action
 
 }
 
+	// InvalidCmd not used
 	func objRecvRspFn_InvalidCmd(me interface{}, hd c2s_packet.Header, body interface{}) error {
 		robj , ok := body.(*c2s_obj.RspInvalidCmd_data)
 		if !ok {
@@ -20,6 +22,7 @@ c2s_idcmd.Chat : objRecvRspFn_Chat,
 		return fmt.Errorf("Not implemented %v", robj)
 	}
 
+	// Login make session with nickname and enter stage
 	func objRecvRspFn_Login(me interface{}, hd c2s_packet.Header, body interface{}) error {
 		robj , ok := body.(*c2s_obj.RspLogin_data)
 		if !ok {
@@ -28,6 +31,7 @@ c2s_idcmd.Chat : objRecvRspFn_Chat,
 		return fmt.Errorf("Not implemented %v", robj)
 	}
 
+	// Heartbeat prevent connection timeout
 	func objRecvRspFn_Heartbeat(me interface{}, hd c2s_packet.Header, body interface{}) error {
 		robj , ok := body.(*c2s_obj.RspHeartbeat_data)
 		if !ok {
@@ -36,8 +40,18 @@ c2s_idcmd.Chat : objRecvRspFn_Chat,
 		return fmt.Errorf("Not implemented %v", robj)
 	}
 
+	// Chat chat to stage
 	func objRecvRspFn_Chat(me interface{}, hd c2s_packet.Header, body interface{}) error {
 		robj , ok := body.(*c2s_obj.RspChat_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %v", body )
+		}
+		return fmt.Errorf("Not implemented %v", robj)
+	}
+
+	// Act send user action
+	func objRecvRspFn_Act(me interface{}, hd c2s_packet.Header, body interface{}) error {
+		robj , ok := body.(*c2s_obj.RspAct_data)
 		if !ok {
 			return fmt.Errorf("packet mismatch %v", body )
 		}

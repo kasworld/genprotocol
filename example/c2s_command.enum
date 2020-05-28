@@ -1,5 +1,6 @@
 # this line is ignored
-InvalidCmd
-Login
-Heartbeat
-Chat
+InvalidCmd not used
+Login make session with nickname and enter stage
+Heartbeat prevent connection timeout
+Chat chat to stage 
+Act send user action

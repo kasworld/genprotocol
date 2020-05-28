@@ -6,13 +6,13 @@ import "fmt"
 
 type NotiID uint16 // use in packet header, DO NOT CHANGE
 const (
-	Broadcast NotiID = iota //
+	Broadcast NotiID = iota // send message to all connection
 
 	NotiID_Count int = iota
 )
 
 var _NotiID2string = [NotiID_Count][2]string{
-	Broadcast: {"Broadcast", ""},
+	Broadcast: {"Broadcast", "send message to all connection"},
 }
 
 func (e NotiID) String() string {
