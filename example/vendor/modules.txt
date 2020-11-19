@@ -1,0 +1,16 @@
+# github.com/gorilla/websocket v1.4.2
+## explicit
+github.com/gorilla/websocket
+# github.com/kasworld/actpersec v0.0.0-20191019021204-8c24cd60715c
+## explicit
+github.com/kasworld/actpersec
+# github.com/kasworld/g2rand v0.0.0-20200315073237-cff14c61a4f0
+## explicit
+# github.com/kasworld/uuidstr v0.0.0-20190503034528-2edffd24297a
+## explicit
+github.com/kasworld/uuidstr
+# github.com/philhofer/fwd v1.1.0
+github.com/philhofer/fwd
+# github.com/tinylib/msgp v1.1.4
+## explicit
+github.com/tinylib/msgp/msgp

@@ -1,5 +1,3 @@
-// +build ignore
-
 // Copyright 2015,2016,2017,2018,2019,2020 SeukWon Kang (kasworld@gmail.com)
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +22,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kasworld/actpersec"
 	"github.com/kasworld/genprotocol/example/c2s_authorize"
-	"github.com/kasworld/genprotocol/example/c2s_connmanager"
+	"github.com/kasworld/genprotocol/example/c2s_connbytemanager"
 	"github.com/kasworld/genprotocol/example/c2s_error"
 	"github.com/kasworld/genprotocol/example/c2s_gob"
 	"github.com/kasworld/genprotocol/example/c2s_idcmd"
@@ -59,7 +57,7 @@ func main() {
 type Server struct {
 	sendRecvStop func()
 
-	connManager *c2s_connmanager.Manager
+	connManager *c2s_connbytemanager.Manager
 
 	SendStat *actpersec.ActPerSec `prettystring:"simple"`
 	RecvStat *actpersec.ActPerSec `prettystring:"simple"`
@@ -76,7 +74,7 @@ type Server struct {
 
 func NewServer(marshaltype string) *Server {
 	svr := &Server{
-		connManager: c2s_connmanager.New(),
+		connManager: c2s_connbytemanager.New(),
 		SendStat:    actpersec.New(),
 		RecvStat:    actpersec.New(),
 		apiStat:     c2s_statserveapi.New(),
@@ -109,6 +107,7 @@ func NewServer(marshaltype string) *Server {
 		c2s_idcmd.Login:      svr.bytesAPIFn_ReqLogin,
 		c2s_idcmd.Heartbeat:  svr.bytesAPIFn_ReqHeartbeat,
 		c2s_idcmd.Chat:       svr.bytesAPIFn_ReqChat,
+		c2s_idcmd.Act:        svr.bytesAPIFn_ReqAct,
 	}
 	return svr
 }
@@ -320,5 +319,23 @@ func (svr *Server) bytesAPIFn_ReqChat(
 
 	hd.ErrorCode = c2s_error.None
 	sendBody := &c2s_obj.RspChat_data{recvBody.Msg}
+	return hd, sendBody, nil
+}
+
+func (svr *Server) bytesAPIFn_ReqAct(
+	me interface{}, hd c2s_packet.Header, rbody []byte) (
+	c2s_packet.Header, interface{}, error) {
+	robj, err := svr.unmarshalPacketFn(hd, rbody)
+	if err != nil {
+		return hd, nil, fmt.Errorf("Packet type miss match %v", rbody)
+	}
+	recvBody, ok := robj.(*c2s_obj.ReqAct_data)
+	if !ok {
+		return hd, nil, fmt.Errorf("Packet type miss match %v", robj)
+	}
+	_ = recvBody
+
+	hd.ErrorCode = c2s_error.None
+	sendBody := &c2s_obj.RspAct_data{}
 	return hd, sendBody, nil
 }
