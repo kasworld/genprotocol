@@ -726,7 +726,7 @@ func buildObj(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	/* protocol object
+	// protocol object
 	`, genArgs.Prefix+postfix)
 
 	for _, f := range genArgs.CmdIDs {
