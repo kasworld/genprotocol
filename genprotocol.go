@@ -102,20 +102,37 @@ func main() {
 		MakeDest{"_idcmd", "command_gen.go", buildCommandEnum, true},
 		MakeDest{"_idnoti", "noti_gen.go", buildNotiEnum, true},
 		MakeDest{"_error", "error_gen.go", buildErrorEnum, true},
+
 		MakeDest{"_const", "consttemplate_gen.go", buildConstTemplate, true},
 		MakeDest{"_const", "const.go", buildConst, false},
+
 		MakeDest{"_packet", "packet_gen.go", buildPacket, true},
+
 		MakeDest{"_obj", "objtemplate_gen.go", buildObjTemplate, true},
 		MakeDest{"_obj", "obj.go", buildObj, false},
+
 		MakeDest{"_msgp", "serialize_gen.go", buildMSGP, true},
 		MakeDest{"_json", "serialize_gen.go", buildJSON, true},
 		MakeDest{"_gob", "serialize_gen.go", buildGOB, true},
+
 		MakeDest{"_handlersp", "fnobjtemplate_gen.go", buildRecvRspFnObjTemplate, true},
+		MakeDest{"_handlersp", "fnobj.go", buildRecvRspFnObj, false},
+
 		MakeDest{"_handlersp", "fnbytestemplate_gen.go", buildRecvRspFnBytesTemplate, true},
+		MakeDest{"_handlersp", "fnbytes.go", buildRecvRspFnBytes, false},
+
 		MakeDest{"_handlereq", "fnobjtemplate_gen.go", buildRecvReqFnObjTemplate, true},
+		MakeDest{"_handlereq", "fnobj.go", buildRecvReqFnObj, false},
+
 		MakeDest{"_handlereq", "fnbytestemplate_gen.go", buildRecvReqFnBytesAPITemplate, true},
+		MakeDest{"_handlereq", "fnbytes.go", buildRecvReqFnBytesAPI, false},
+
 		MakeDest{"_handlenoti", "fnobjtemplate_gen.go", buildRecvNotiFnObjTemplate, true},
+		MakeDest{"_handlenoti", "fnobj.go", buildRecvNotiFnObj, false},
+
 		MakeDest{"_handlenoti", "fnbytestemplate_gen.go", buildRecvNotiFnBytesTemplate, true},
+		MakeDest{"_handlenoti", "fnbytes.go", buildRecvNotiFnBytes, false},
+
 		MakeDest{"_serveconnbyte", "serveconnbyte_gen.go", buildServeConnByte, true},
 		MakeDest{"_connbytemanager", "connbytemanager_gen.go", buildConnByteManager, true},
 		MakeDest{"_conntcp", "conntcp_gen.go", buildConnTCP, true},
@@ -354,12 +371,12 @@ func buildConstTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	`, genArgs.Prefix+postfix)
 	return &buf
 }
-
 func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
 	package %[1]s
+	// edit as you need
 	const (
 		// MaxBodyLen set to max body len, affect send/recv buffer size
 		MaxBodyLen = 0xffff
@@ -677,7 +694,7 @@ func buildObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
 	package %[1]s
-	/* protocol template 
+	/* protocol object template 
 	`, genArgs.Prefix+postfix)
 
 	for _, f := range genArgs.CmdIDs {
@@ -704,12 +721,12 @@ func buildObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	*/`)
 	return &buf
 }
-
 func buildObj(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
 	package %[1]s
+	/* protocol object
 	`, genArgs.Prefix+postfix)
 
 	for _, f := range genArgs.CmdIDs {
@@ -1030,6 +1047,35 @@ func buildRecvRspFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	*/`)
 	return &buf
 }
+func buildRecvRspFnObj(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	// obj base demux fn map
+	`, genArgs.Prefix+postfix)
+	fmt.Fprintf(&buf,
+		"\nvar DemuxRsp2ObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
+		genArgs.Prefix)
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : objRecvRspFn_%[2]s, // %[2]s %[3]s \n",
+			genArgs.Prefix, f[0], f[1])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s 
+	func objRecvRspFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
+		robj , ok := body.(*%[1]s_obj.Rsp%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", body )
+		}
+		return fmt.Errorf("Not implemented %%v", robj)
+	}
+	`, genArgs.Prefix, f[0], f[1])
+	}
+	return &buf
+}
 
 func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
@@ -1066,6 +1112,39 @@ func buildRecvRspFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer 
 	*/`)
 	return &buf
 }
+func buildRecvRspFnBytes(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	// bytes base demux fn map
+	`, genArgs.Prefix+postfix)
+	fmt.Fprintf(&buf,
+		"\nvar DemuxRsp2BytesFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {\n",
+		genArgs.Prefix)
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s : bytesRecvRspFn_%[2]s, // %[2]s %[3]s \n",
+			genArgs.Prefix, f[0], f[1])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
+	func bytesRecvRspFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
+		robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
+		if err != nil {
+			return  fmt.Errorf("Packet type miss match %%v", rbody)
+		}
+		recved , ok := robj.(*%[1]s_obj.Rsp%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", robj )
+		}
+		return fmt.Errorf("Not implemented %%v", recved)
+	}
+	`, genArgs.Prefix, f[0], f[1])
+	}
+	return &buf
+}
 
 func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
@@ -1097,6 +1176,36 @@ func buildRecvNotiFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
+	return &buf
+}
+func buildRecvNotiFnObj(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	// obj base demux fn map
+	`, genArgs.Prefix+postfix)
+
+	fmt.Fprintf(&buf,
+		"\nvar DemuxNoti2ObjFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, body interface{}) error {\n",
+		genArgs.Prefix)
+	for _, f := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : objRecvNotiFn_%[2]s, // %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	for _, f := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
+	func objRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, body interface{}) error {
+		robj , ok := body.(*%[1]s_obj.Noti%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", body )
+		}
+		return fmt.Errorf("Not implemented %%v", robj)
+	}
+	`, genArgs.Prefix, f[0], f[1])
+	}
 	return &buf
 }
 
@@ -1134,6 +1243,40 @@ func buildRecvNotiFnBytesTemplate(genArgs GenArgs, postfix string) *bytes.Buffer
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
+	return &buf
+}
+func buildRecvNotiFnBytes(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	// bytes base demux fn map
+	`, genArgs.Prefix+postfix)
+
+	fmt.Fprintf(&buf,
+		"\nvar DemuxNoti2ByteFnMap = [...]func(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {\n",
+		genArgs.Prefix)
+	for _, f := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s : bytesRecvNotiFn_%[2]s,// %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
+	}
+	fmt.Fprintf(&buf, "\n}\n")
+	for _, f := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
+	func bytesRecvNotiFn_%[2]s(me interface{}, hd %[1]s_packet.Header, rbody []byte) error {
+		robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
+		if err != nil {
+			return fmt.Errorf("Packet type miss match %%v", rbody)
+		}
+		recved , ok := robj.(*%[1]s_obj.Noti%[2]s_data)
+		if !ok {
+			return fmt.Errorf("packet mismatch %%v", robj )
+		}
+		return fmt.Errorf("Not implemented %%v", recved)
+	}
+	`, genArgs.Prefix, f[0], f[1])
+	}
 	return &buf
 }
 
@@ -1186,6 +1329,53 @@ func buildRecvReqFnObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	*/`)
 	return &buf
 }
+func buildRecvReqFnObj(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	`, genArgs.Prefix+postfix)
+
+	fmt.Fprintf(&buf, `
+	// obj base demux fn map
+	var DemuxReq2ObjAPIFnMap = [...]func(
+		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
+		%[1]s_packet.Header, interface{}, error){
+	`, genArgs.Prefix)
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: Req2ObjAPI_%[2]s,// %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
+	}
+	fmt.Fprintf(&buf, "\n}   // DemuxReq2ObjAPIFnMap\n")
+
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s
+	func Req2ObjAPI_%[2]s(
+		me interface{}, hd %[1]s_packet.Header, robj interface{}) (
+		%[1]s_packet.Header, interface{},  error) {
+		req, ok := robj.(*%[1]s_obj.Req%[2]s_data)
+		if !ok {
+			return hd, nil, fmt.Errorf("Packet type miss match %%v", robj)
+		}
+		rhd, rsp, err := objAPIFn_Req%[2]s(me, hd, req)
+		return rhd, rsp, err
+	}
+	// %[2]s %[3]s
+	func objAPIFn_Req%[2]s(
+		me interface{}, hd %[1]s_packet.Header, robj *%[1]s_obj.Req%[2]s_data) (
+		%[1]s_packet.Header, *%[1]s_obj.Rsp%[2]s_data, error) {
+		sendHeader := %[1]s_packet.Header{
+			ErrorCode : %[1]s_error.None,
+		}
+		sendBody := &%[1]s_obj.Rsp%[2]s_data{
+		}
+		return sendHeader, sendBody, nil
+	}
+		`, genArgs.Prefix, f[0], f[1])
+	}
+	return &buf
+}
 
 func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
@@ -1233,6 +1423,52 @@ func buildRecvReqFnBytesAPITemplate(genArgs GenArgs, postfix string) *bytes.Buff
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
+	return &buf
+}
+func buildRecvReqFnBytesAPI(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	`, genArgs.Prefix+postfix)
+
+	fmt.Fprintf(&buf, `
+	// bytes base fn map api, unmarshal in api
+	var DemuxReq2BytesAPIFnMap = [...]func(
+		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
+		%[1]s_packet.Header, interface{}, error){
+	`, genArgs.Prefix)
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s: bytesAPIFn_Req%[2]s,// %[2]s %[3]s\n",
+			genArgs.Prefix, f[0], f[1])
+	}
+	fmt.Fprintf(&buf, "\n}   // DemuxReq2BytesAPIFnMap\n")
+
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, `
+	// %[2]s %[3]s		
+	func bytesAPIFn_Req%[2]s(
+		me interface{}, hd %[1]s_packet.Header, rbody []byte) (
+		%[1]s_packet.Header, interface{}, error) {
+		// robj, err := %[1]s_json.UnmarshalPacket(hd, rbody)
+		// if err != nil {
+		// 	return hd, nil, fmt.Errorf("Packet type miss match %%v", rbody)
+		// }
+		// recvBody, ok := robj.(*%[1]s_obj.Req%[2]s_data)
+		// if !ok {
+		// 	return hd, nil, fmt.Errorf("Packet type miss match %%v", robj)
+		// }
+		// _ = recvBody
+		
+		sendHeader := %[1]s_packet.Header{
+			ErrorCode : %[1]s_error.None,
+		}
+		sendBody := &%[1]s_obj.Rsp%[2]s_data{
+		}
+		return sendHeader, sendBody, nil
+	}
+		`, genArgs.Prefix, f[0], f[1])
+	}
 	return &buf
 }
 

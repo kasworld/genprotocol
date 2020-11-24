@@ -2,7 +2,7 @@
 
 package c2s_obj
 
-/* protocol template
+/* protocol object template
 
 // InvalidCmd not used
 type ReqInvalidCmd_data struct {
