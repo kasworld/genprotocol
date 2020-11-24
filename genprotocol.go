@@ -103,8 +103,10 @@ func main() {
 		MakeDest{"_idnoti", "noti_gen.go", buildNotiEnum, true},
 		MakeDest{"_error", "error_gen.go", buildErrorEnum, true},
 		MakeDest{"_const", "consttemplate_gen.go", buildConstTemplate, true},
+		MakeDest{"_const", "const.go", buildConst, false},
 		MakeDest{"_packet", "packet_gen.go", buildPacket, true},
 		MakeDest{"_obj", "objtemplate_gen.go", buildObjTemplate, true},
+		MakeDest{"_obj", "obj.go", buildObj, false},
 		MakeDest{"_msgp", "serialize_gen.go", buildMSGP, true},
 		MakeDest{"_json", "serialize_gen.go", buildJSON, true},
 		MakeDest{"_gob", "serialize_gen.go", buildGOB, true},
@@ -133,7 +135,7 @@ func main() {
 		buf := v.Fn(genArgs, v.Postfix)
 		filename := path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename)
 		if !v.OverWriteExist && genlib.IsFileExist(filename) {
-			fmt.Printf("skip %v file exist\n", filename)
+			fmt.Printf("skip exist file %v\n", filename)
 			continue
 		}
 		genlib.SaveTo(buf, filename, genArgs.Verbose)
@@ -341,14 +343,32 @@ func buildConstTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	/*  copy to no _gen file, and edit it
 	const (
 		// MaxBodyLen set to max body len, affect send/recv buffer size
-		MaxBodyLen = 0xfffff
+		MaxBodyLen = 0xffff
 		// PacketBufferPoolSize max size of pool packet buffer
-		PacketBufferPoolSize = 100
+		PacketBufferPoolSize = 10
 
 		// ServerAPICallTimeOutDur api call watchdog timer
 		ServerAPICallTimeOutDur = time.Second * 2
 	)
 	*/
+	`, genArgs.Prefix+postfix)
+	return &buf
+}
+
+func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	const (
+		// MaxBodyLen set to max body len, affect send/recv buffer size
+		MaxBodyLen = 0xffff
+		// PacketBufferPoolSize max size of pool packet buffer
+		PacketBufferPoolSize = 10
+
+		// ServerAPICallTimeOutDur api call watchdog timer
+		ServerAPICallTimeOutDur = time.Second * 2
+	)
 	`, genArgs.Prefix+postfix)
 	return &buf
 }
@@ -682,6 +702,36 @@ func buildObjTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	}
 	fmt.Fprintf(&buf, `
 	*/`)
+	return &buf
+}
+
+func buildObj(genArgs GenArgs, postfix string) *bytes.Buffer {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, genArgs.GenComment)
+	fmt.Fprintf(&buf, `
+	package %[1]s
+	`, genArgs.Prefix+postfix)
+
+	for _, f := range genArgs.CmdIDs {
+		fmt.Fprintf(&buf, `
+		// %[2]s %[3]s
+		type Req%[2]s_data struct {
+			Dummy uint8 // change as you need 
+		}
+		// %[2]s %[3]s
+		type Rsp%[2]s_data struct {
+			Dummy uint8 // change as you need 
+		}
+		`, genArgs.Prefix, f[0], f[1])
+	}
+	for _, f := range genArgs.NotiIDs {
+		fmt.Fprintf(&buf, `
+		// %[1]s %[2]s
+		type Noti%[1]s_data struct {
+			Dummy uint8 // change as you need 
+		}
+		`, f[0], f[1])
+	}
 	return &buf
 }
 
