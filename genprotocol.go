@@ -84,9 +84,10 @@ func loadGenArgs() (GenArgs, error) {
 }
 
 type MakeDest struct {
-	Postfix  string
-	Filename string
-	Fn       func(genArgs GenArgs, postfix string) *bytes.Buffer
+	Postfix        string
+	Filename       string
+	Fn             func(genArgs GenArgs, postfix string) *bytes.Buffer
+	OverWriteExist bool
 }
 
 func main() {
@@ -97,42 +98,45 @@ func main() {
 	// postfix, filename
 	makeDatas := []MakeDest{
 		// MakeDest{"_gendata", "",},
-		MakeDest{"_version", "version_gen.go", buildVersion},
-		MakeDest{"_idcmd", "command_gen.go", buildCommandEnum},
-		MakeDest{"_idnoti", "noti_gen.go", buildNotiEnum},
-		MakeDest{"_error", "error_gen.go", buildErrorEnum},
-		MakeDest{"_const", "const_gen.go", buildConst},
-		MakeDest{"_packet", "packet_gen.go", buildPacket},
-		MakeDest{"_obj", "objtemplate_gen.go", buildObjTemplate},
-		MakeDest{"_msgp", "serialize_gen.go", buildMSGP},
-		MakeDest{"_json", "serialize_gen.go", buildJSON},
-		MakeDest{"_gob", "serialize_gen.go", buildGOB},
-		MakeDest{"_handlersp", "fnobjtemplate_gen.go", buildRecvRspFnObjTemplate},
-		MakeDest{"_handlersp", "fnbytestemplate_gen.go", buildRecvRspFnBytesTemplate},
-		MakeDest{"_handlereq", "fnobjtemplate_gen.go", buildRecvReqFnObjTemplate},
-		MakeDest{"_handlereq", "fnbytestemplate_gen.go", buildRecvReqFnBytesAPITemplate},
-		MakeDest{"_handlenoti", "fnobjtemplate_gen.go", buildRecvNotiFnObjTemplate},
-		MakeDest{"_handlenoti", "fnbytestemplate_gen.go", buildRecvNotiFnBytesTemplate},
-		MakeDest{"_serveconnbyte", "serveconnbyte_gen.go", buildServeConnByte},
-		MakeDest{"_connbytemanager", "connbytemanager_gen.go", buildConnByteManager},
-		MakeDest{"_conntcp", "conntcp_gen.go", buildConnTCP},
-		MakeDest{"_connwasm", "connwasm_gen.go", buildConnWasm},
-		MakeDest{"_connwsgorilla", "connwsgorilla_gen.go", buildConnWSGorilla},
-		MakeDest{"_loopwsgorilla", "loopwsgorilla_gen.go", buildLoopWSGorilla},
-		MakeDest{"_looptcp", "looptcp_gen.go", buildLoopTCP},
-		MakeDest{"_pid2rspfn", "pid2rspfn_gen.go", buildPID2RspFn},
-		MakeDest{"_statnoti", "statnoti_gen.go", buildStatNoti},
-		MakeDest{"_statcallapi", "statcallapi_gen.go", buildStatCallAPI},
-		MakeDest{"_statserveapi", "statserveapi_gen.go", buildStatServeAPI},
-		MakeDest{"_statapierror", "statapierror_gen.go", buildStatAPIError},
-		MakeDest{"_authorize", "authorize_gen.go", buildAuthorize},
+		MakeDest{"_version", "version_gen.go", buildVersion, true},
+		MakeDest{"_idcmd", "command_gen.go", buildCommandEnum, true},
+		MakeDest{"_idnoti", "noti_gen.go", buildNotiEnum, true},
+		MakeDest{"_error", "error_gen.go", buildErrorEnum, true},
+		MakeDest{"_const", "consttemplate_gen.go", buildConstTemplate, true},
+		MakeDest{"_packet", "packet_gen.go", buildPacket, true},
+		MakeDest{"_obj", "objtemplate_gen.go", buildObjTemplate, true},
+		MakeDest{"_msgp", "serialize_gen.go", buildMSGP, true},
+		MakeDest{"_json", "serialize_gen.go", buildJSON, true},
+		MakeDest{"_gob", "serialize_gen.go", buildGOB, true},
+		MakeDest{"_handlersp", "fnobjtemplate_gen.go", buildRecvRspFnObjTemplate, true},
+		MakeDest{"_handlersp", "fnbytestemplate_gen.go", buildRecvRspFnBytesTemplate, true},
+		MakeDest{"_handlereq", "fnobjtemplate_gen.go", buildRecvReqFnObjTemplate, true},
+		MakeDest{"_handlereq", "fnbytestemplate_gen.go", buildRecvReqFnBytesAPITemplate, true},
+		MakeDest{"_handlenoti", "fnobjtemplate_gen.go", buildRecvNotiFnObjTemplate, true},
+		MakeDest{"_handlenoti", "fnbytestemplate_gen.go", buildRecvNotiFnBytesTemplate, true},
+		MakeDest{"_serveconnbyte", "serveconnbyte_gen.go", buildServeConnByte, true},
+		MakeDest{"_connbytemanager", "connbytemanager_gen.go", buildConnByteManager, true},
+		MakeDest{"_conntcp", "conntcp_gen.go", buildConnTCP, true},
+		MakeDest{"_connwasm", "connwasm_gen.go", buildConnWasm, true},
+		MakeDest{"_connwsgorilla", "connwsgorilla_gen.go", buildConnWSGorilla, true},
+		MakeDest{"_loopwsgorilla", "loopwsgorilla_gen.go", buildLoopWSGorilla, true},
+		MakeDest{"_looptcp", "looptcp_gen.go", buildLoopTCP, true},
+		MakeDest{"_pid2rspfn", "pid2rspfn_gen.go", buildPID2RspFn, true},
+		MakeDest{"_statnoti", "statnoti_gen.go", buildStatNoti, true},
+		MakeDest{"_statcallapi", "statcallapi_gen.go", buildStatCallAPI, true},
+		MakeDest{"_statserveapi", "statserveapi_gen.go", buildStatServeAPI, true},
+		MakeDest{"_statapierror", "statapierror_gen.go", buildStatAPIError, true},
+		MakeDest{"_authorize", "authorize_gen.go", buildAuthorize, true},
 	}
 	for _, v := range makeDatas {
 		os.MkdirAll(path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix), os.ModePerm)
 		buf := v.Fn(genArgs, v.Postfix)
-		genlib.SaveTo(buf,
-			path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename),
-			genArgs.Verbose)
+		filename := path.Join(genArgs.BaseDir, genArgs.Prefix+v.Postfix, v.Filename)
+		if !v.OverWriteExist && genlib.IsFileExist(filename) {
+			fmt.Printf("skip %v file exist\n", filename)
+			continue
+		}
+		genlib.SaveTo(buf, filename, genArgs.Verbose)
 	}
 
 	if genArgs.StatsType != "" {
@@ -145,10 +149,8 @@ func main() {
 			packagename := genArgs.Prefix + v[0]
 			os.MkdirAll(path.Join(genArgs.BaseDir, packagename+"_stats"), os.ModePerm)
 			buf := buildStatsCode(genArgs, packagename, v[1], genArgs.StatsType)
-			genlib.SaveTo(buf,
-				path.Join(genArgs.BaseDir, packagename+"_stats", packagename+"_stats_gen.go"),
-				genArgs.Verbose,
-			)
+			filename := path.Join(genArgs.BaseDir, packagename+"_stats", packagename+"_stats_gen.go")
+			genlib.SaveTo(buf, filename, genArgs.Verbose)
 		}
 	}
 }
@@ -331,7 +333,7 @@ func buildErrorEnum(genArgs GenArgs, postfix string) *bytes.Buffer {
 	return &buf
 }
 
-func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
+func buildConstTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `

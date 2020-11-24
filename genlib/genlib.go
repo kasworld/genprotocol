@@ -70,3 +70,10 @@ func SaveTo(outdata *bytes.Buffer, outfilename string, verbose bool) error {
 	}
 	return nil
 }
+
+func IsFileExist(filename string) bool {
+	if _, err := os.Stat(filename); err == nil || os.IsExist(err) {
+		return true
+	}
+	return false
+}
