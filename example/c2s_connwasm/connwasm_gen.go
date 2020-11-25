@@ -8,11 +8,8 @@ import (
 	"sync"
 	"syscall/js"
 
-	"github.com/kasworld/genprotocol/example/c2s_const"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
 )
-
-var bufPool = c2s_packet.NewPool(c2s_const.PacketBufferPoolSize)
 
 type Connection struct {
 	remoteAddr   string
@@ -85,6 +82,7 @@ func (wsc *Connection) wsError(this js.Value, args []js.Value) interface{} {
 
 func (wsc *Connection) sendLoop(sendRecvCtx context.Context) {
 	defer wsc.SendRecvStop()
+	oldbuf := make([]byte, c2s_packet.HeaderLen, c2s_packet.MaxPacketLen)
 	var err error
 loop:
 	for {
@@ -92,21 +90,16 @@ loop:
 		case <-sendRecvCtx.Done():
 			break loop
 		case pk := <-wsc.sendCh:
-			oldbuf := bufPool.Get()
 			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf)
 			if err != nil {
-				bufPool.Put(oldbuf)
 				break loop
 			}
 			if err = wsc.sendPacket(sendBuffer); err != nil {
-				bufPool.Put(oldbuf)
 				break loop
 			}
 			if err = wsc.handleSentPacketFn(pk.Header); err != nil {
-				bufPool.Put(oldbuf)
 				break loop
 			}
-			bufPool.Put(oldbuf)
 		}
 	}
 	JsLogErrorf("end SendLoop %v\n", err)

@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"sync"
 
 	"github.com/kasworld/genprotocol/example/c2s_const"
 	"github.com/kasworld/genprotocol/example/c2s_error"
@@ -260,47 +259,4 @@ func Packet2Bytes(pk *Packet,
 	pk.Header.bodyLen = uint32(bodyLen)
 	pk.Header.toBytesAt(newbuf)
 	return newbuf, nil
-}
-
-///////////////////////////////////////////////////////////////////////////////
-type Buffer []byte
-
-type Pool struct {
-	mutex    sync.Mutex
-	buffPool []Buffer
-	size     int
-}
-
-func NewPool(size int) *Pool {
-	return &Pool{
-		buffPool: make([]Buffer, 0, size),
-		size:     size,
-	}
-}
-
-func (p *Pool) String() string {
-	return fmt.Sprintf("PacketPool[%v/%v]",
-		len(p.buffPool), p.size,
-	)
-}
-
-func (p *Pool) Get() Buffer {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	var rtn Buffer
-	if l := len(p.buffPool); l > 0 {
-		rtn = p.buffPool[l-1]
-		p.buffPool = p.buffPool[:l-1]
-	} else {
-		rtn = make(Buffer, HeaderLen, MaxPacketLen)
-	}
-	return rtn
-}
-
-func (p *Pool) Put(pb Buffer) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	if len(p.buffPool) < p.size {
-		p.buffPool = append(p.buffPool, pb[:HeaderLen])
-	}
 }

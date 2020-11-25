@@ -380,9 +380,6 @@ func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
 	const (
 		// MaxBodyLen set to max body len, affect send/recv buffer size
 		MaxBodyLen = 0xffff
-		// PacketBufferPoolSize max size of pool packet buffer
-		PacketBufferPoolSize = 10
-
 		// ServerAPICallTimeOutDur api call watchdog timer
 		ServerAPICallTimeOutDur = time.Second * 2
 	)
@@ -641,49 +638,6 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		pk.Header.bodyLen = uint32(bodyLen)
 		pk.Header.toBytesAt(newbuf)
 		return newbuf, nil
-	}
-	
-	///////////////////////////////////////////////////////////////////////////////
-	type Buffer []byte
-	
-	type Pool struct {
-		mutex    sync.Mutex
-		buffPool []Buffer
-		size    int
-	}
-	
-	func NewPool(size int) *Pool {
-		return &Pool{
-			buffPool: make([]Buffer, 0, size),
-			size:    size,
-		}
-	}
-	
-	func (p *Pool) String() string {
-		return fmt.Sprintf("PacketPool[%%v/%%v]",
-			len(p.buffPool), p.size,
-		)
-	}
-	
-	func (p *Pool) Get() Buffer {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-		var rtn Buffer
-		if l := len(p.buffPool); l > 0 {
-			rtn = p.buffPool[l-1]
-			p.buffPool = p.buffPool[:l-1]
-		} else {
-			rtn = make(Buffer, HeaderLen, MaxPacketLen)
-		}
-		return rtn
-	}
-	
-	func (p *Pool) Put(pb Buffer) {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-		if len(p.buffPool) < p.size {
-			p.buffPool = append(p.buffPool, pb[:HeaderLen])
-		}
 	}
 	`, genArgs.Prefix)
 	return &buf
@@ -1953,8 +1907,6 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 	)
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
-	var bufPool = %[1]s_packet.NewPool(%[1]s_const.PacketBufferPoolSize)
-
 	type Connection struct {
 		remoteAddr   string
 		conn         js.Value
@@ -2026,6 +1978,7 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 	
 	func (wsc *Connection) sendLoop(sendRecvCtx context.Context) {
 		defer wsc.SendRecvStop()
+		oldbuf := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {
@@ -2033,21 +1986,16 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-wsc.sendCh:
-				oldbuf := bufPool.Get()
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf)
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf[:%[1]s_packet.HeaderLen])
 				if err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = wsc.sendPacket(sendBuffer); err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = wsc.handleSentPacketFn(pk.Header); err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
-				bufPool.Put(oldbuf)
 			}
 		}
 		JsLogErrorf("end SendLoop %%v\n", err)
@@ -2247,9 +2195,6 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	)
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
-
-	var bufPool = %[1]s_packet.NewPool(%[1]s_const.PacketBufferPoolSize)
-
 	func SendControl(
 		wsConn *websocket.Conn, mt int, PacketWriteTimeOut time.Duration) error {
 	
@@ -2268,6 +2213,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) error {
 
 		defer SendRecvStop()
+		oldbuf := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {
@@ -2279,21 +2225,16 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 					break loop
 				}
-				oldbuf := bufPool.Get()
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:%[1]s_packet.HeaderLen])
 				if err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = SendPacket(wsConn, sendBuffer); err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = handleSentPacketFn(pk.Header); err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
-				bufPool.Put(oldbuf)
 			}
 		}
 		return err
@@ -2356,8 +2297,6 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	)
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
-	var bufPool = %[1]s_packet.NewPool(%[1]s_const.PacketBufferPoolSize)
-
 	func SendPacket(conn *net.TCPConn, buf []byte) error {
 		toWrite := len(buf)
 		for l := 0; l < toWrite; {
@@ -2378,6 +2317,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) error {
 
 		defer SendRecvStop()
+		oldbuf := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {
@@ -2388,21 +2328,16 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
-				oldbuf := bufPool.Get()
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:%[1]s_packet.HeaderLen])
 				if err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = SendPacket(tcpConn, sendBuffer); err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
 				if err = handleSentPacketFn(pk.Header); err != nil {
-					bufPool.Put(oldbuf)
 					break loop
 				}
-				bufPool.Put(oldbuf)
 			}
 		}
 		return err

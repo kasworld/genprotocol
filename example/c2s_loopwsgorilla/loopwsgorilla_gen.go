@@ -9,11 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/kasworld/genprotocol/example/c2s_const"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
 )
-
-var bufPool = c2s_packet.NewPool(c2s_const.PacketBufferPoolSize)
 
 func SendControl(
 	wsConn *websocket.Conn, mt int, PacketWriteTimeOut time.Duration) error {
@@ -33,6 +30,7 @@ func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), wsConn *websocke
 ) error {
 
 	defer SendRecvStop()
+	oldbuf := make([]byte, c2s_packet.HeaderLen, c2s_packet.MaxPacketLen)
 	var err error
 loop:
 	for {
@@ -44,21 +42,16 @@ loop:
 			if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 				break loop
 			}
-			oldbuf := bufPool.Get()
 			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
 			if err != nil {
-				bufPool.Put(oldbuf)
 				break loop
 			}
 			if err = SendPacket(wsConn, sendBuffer); err != nil {
-				bufPool.Put(oldbuf)
 				break loop
 			}
 			if err = handleSentPacketFn(pk.Header); err != nil {
-				bufPool.Put(oldbuf)
 				break loop
 			}
-			bufPool.Put(oldbuf)
 		}
 	}
 	return err
