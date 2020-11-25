@@ -90,7 +90,7 @@ loop:
 		case <-sendRecvCtx.Done():
 			break loop
 		case pk := <-wsc.sendCh:
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf)
+			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}

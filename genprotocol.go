@@ -2365,11 +2365,12 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 						err = lerr
 						break loop
 					}
-					if err = HandleRecvPacketFn(header, rbody); err != nil {
+					if err = HandleRecvPacketFn(header, append([]byte{}, rbody...)); err != nil {
 						break loop
 					}
-					pb = %[1]s_packet.NewRecvPacketBuffer()
-					if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
+					// reuse 
+					pb.RecvLen = 0
+						if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
 						break loop
 					}
 				} else {

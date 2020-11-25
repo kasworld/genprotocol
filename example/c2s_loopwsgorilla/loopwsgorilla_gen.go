@@ -42,7 +42,7 @@ loop:
 			if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 				break loop
 			}
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
+			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}

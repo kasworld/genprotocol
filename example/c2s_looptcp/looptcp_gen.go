@@ -41,7 +41,7 @@ loop:
 			if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 				break loop
 			}
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf)
+			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}
@@ -78,10 +78,11 @@ loop:
 					err = lerr
 					break loop
 				}
-				if err = HandleRecvPacketFn(header, rbody); err != nil {
+				if err = HandleRecvPacketFn(header, append([]byte{}, rbody...)); err != nil {
 					break loop
 				}
-				pb = c2s_packet.NewRecvPacketBuffer()
+				// reuse
+				pb.RecvLen = 0
 				if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
