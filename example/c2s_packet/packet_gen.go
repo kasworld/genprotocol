@@ -195,8 +195,8 @@ func (pb *RecvPacketBuffer) GetHeaderBody() (Header, []byte, error) {
 		return Header{}, nil, fmt.Errorf("packet not complete")
 	}
 	header := pb.GetHeader()
-	body, err := pb.GetBodyBytes()
-	return header, body, err
+	body := pb.RecvBuffer[HeaderLen : HeaderLen+int(header.bodyLen)]
+	return header, body, nil
 }
 
 // IsHeaderComplete check recv data is sufficient for header
