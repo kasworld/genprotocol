@@ -709,6 +709,10 @@ func buildMSGP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintln(&buf, genArgs.GenComment)
 	fmt.Fprintf(&buf, `
 	package %[1]s
+
+	import (
+		"github.com/tinylib/msgp/msgp"
+	)
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
 	// MarshalBodyFn marshal body and append to oldBufferToAppend
