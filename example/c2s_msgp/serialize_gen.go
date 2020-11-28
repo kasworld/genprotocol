@@ -9,7 +9,7 @@ import (
 	"github.com/kasworld/genprotocol/example/c2s_idnoti"
 	"github.com/kasworld/genprotocol/example/c2s_obj"
 	"github.com/kasworld/genprotocol/example/c2s_packet"
-	"github.com/kasworld/genprotocol/example/vendor/github.com/tinylib/msgp/msgp"
+	"github.com/tinylib/msgp/msgp"
 )
 
 // MarshalBodyFn marshal body and append to oldBufferToAppend
