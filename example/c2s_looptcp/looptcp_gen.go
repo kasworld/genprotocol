@@ -63,7 +63,6 @@ func RecvLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCP
 
 	defer SendRecvStop()
 
-	pb := c2s_packet.NewRecvPacketBuffer()
 	var err error
 loop:
 	for {
@@ -72,25 +71,15 @@ loop:
 			return nil
 
 		default:
-			if pb.IsPacketComplete() {
-				header, rbody, lerr := pb.GetHeaderBody()
-				if lerr != nil {
-					err = lerr
-					break loop
-				}
-				if err = HandleRecvPacketFn(header, append([]byte(nil), rbody...)); err != nil {
-					break loop
-				}
-				// reuse
-				pb.RecvLen = 0
-				if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
-					break loop
-				}
-			} else {
-				err := pb.Read(tcpConn)
-				if err != nil {
-					return err
-				}
+			if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
+				break loop
+			}
+			header, rbody, err := c2s_packet.ReadPacket(tcpConn)
+			if err != nil {
+				return err
+			}
+			if err = HandleRecvPacketFn(header, rbody); err != nil {
+				break loop
 			}
 		}
 	}

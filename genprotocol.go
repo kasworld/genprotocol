@@ -526,93 +526,32 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		return header, rdata[HeaderLen : HeaderLen+int(header.bodyLen)], nil
 	}
-	
-	func NewRecvPacketBuffer() *RecvPacketBuffer {
-		pb := &RecvPacketBuffer{
-			RecvBuffer: make([]byte, MaxPacketLen),
-			RecvLen:    0,
-		}
-		return pb
-	}
 
-	// RecvPacketBuffer used for packet receive
-	type RecvPacketBuffer struct {
-		RecvBuffer []byte
-		RecvLen    int
-	}
-
-	// GetHeader make header and return
-	// if data is insufficent, return empty header
-	func (pb *RecvPacketBuffer) GetHeader() Header {
-		if !pb.IsHeaderComplete() {
-			return Header{}
-		}
-		header := MakeHeaderFromBytes(pb.RecvBuffer)
-		return header
-	}
-
-	// GetBodyBytes return body ready to unmarshal.
-	func (pb *RecvPacketBuffer) GetBodyBytes() ([]byte, error) {
-		if !pb.IsPacketComplete() {
-			return nil, fmt.Errorf("packet not complete")
-		}
-		header := pb.GetHeader()
-		body := pb.RecvBuffer[HeaderLen : HeaderLen+int(header.bodyLen)]
-		return body, nil
-	}
-
-	// GetHeaderBody return header and Body as bytelist
-	// application need demux by header.FlowType, header.Cmd
-	// unmarshal body with header.bodyType
-	// and check header.ID(if response packet)
-	func (pb *RecvPacketBuffer) GetHeaderBody() (Header, []byte, error) {
-		if !pb.IsPacketComplete() {
-			return Header{}, nil, fmt.Errorf("packet not complete")
-		}
-		header := pb.GetHeader()
-		body := pb.RecvBuffer[HeaderLen : HeaderLen+int(header.bodyLen)]
-		return header, body, nil
-	}
-
-	// IsHeaderComplete check recv data is sufficient for header
-	func (pb *RecvPacketBuffer) IsHeaderComplete() bool {
-		return pb.RecvLen >= HeaderLen
-	}
-
-	// IsPacketComplete check recv data is sufficient for packet
-	func (pb *RecvPacketBuffer) IsPacketComplete() bool {
-		if !pb.IsHeaderComplete() {
-			return false
-		}
-		bodylen := GetBodyLenFromHeaderBytes(pb.RecvBuffer)
-		return pb.RecvLen == HeaderLen+int(bodylen)
-	}
-
-	// NeedRecvLen return need data len for header or body
-	func (pb *RecvPacketBuffer) NeedRecvLen() int {
-		if !pb.IsHeaderComplete() {
-			return HeaderLen
-		}
-		bodylen := GetBodyLenFromHeaderBytes(pb.RecvBuffer)
-		return HeaderLen + int(bodylen)
-	}
-
-	// Read use for partial recv like tcp read
-	func (pb *RecvPacketBuffer) Read(conn io.Reader) error {
-		toRead := pb.NeedRecvLen()
-		if toRead > MaxPacketLen {
-			return fmt.Errorf("packet size over MaxPacketLen")
-		}
-		for pb.RecvLen < toRead {
-			n, err := conn.Read(pb.RecvBuffer[pb.RecvLen:toRead])
+	func ReadPacket(conn io.Reader) (Header, []byte, error) {
+		recvLen := 0
+		toRead := HeaderLen
+		readBuffer := make([]byte, toRead)
+		for recvLen < toRead {
+			n, err := conn.Read(readBuffer[recvLen:toRead])
 			if err != nil {
-				return err
+				return Header{}, nil, err
 			}
-			pb.RecvLen += n
+			recvLen += n
 		}
-		return nil
+		header := MakeHeaderFromBytes(readBuffer)
+		recvLen = 0
+		toRead = int(header.bodyLen)
+		readBuffer = make([]byte, toRead)
+		for recvLen < toRead {
+			n, err := conn.Read(readBuffer[recvLen:toRead])
+			if err != nil {
+				return header, nil, err
+			}
+			recvLen += n
+		}
+		return header, readBuffer, nil
 	}
-
+	
 	// Packet2Bytes make packet to bytelist
 	// marshalBodyFn append marshaled(+compress) body to buffer and return total buffer, bodyType, error
 	// set Packet.Header.bodyLen, Packet.Header.bodyType
@@ -2349,7 +2288,6 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	
 		defer SendRecvStop()
 	
-		pb := %[1]s_packet.NewRecvPacketBuffer()
 		var err error
 	loop:
 		for {
@@ -2358,25 +2296,15 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				return nil
 	
 			default:
-				if pb.IsPacketComplete() {
-					header, rbody, lerr := pb.GetHeaderBody()
-					if lerr != nil {
-						err = lerr
-						break loop
-					}
-					if err = HandleRecvPacketFn(header, append([]byte(nil), rbody...)); err != nil {
-						break loop
-					}
-					// reuse 
-					pb.RecvLen = 0
-						if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
-						break loop
-					}
-				} else {
-					err := pb.Read(tcpConn)
-					if err != nil {
-						return err
-					}
+				if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
+					break loop
+				}
+				header, rbody, err := %[1]s_packet.ReadPacket(tcpConn)
+				if err != nil {
+					return err
+				}
+				if err = HandleRecvPacketFn(header, rbody); err != nil {
+					break loop
 				}
 			}
 		}
