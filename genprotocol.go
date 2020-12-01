@@ -541,15 +541,6 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		RecvLen    int
 	}
 
-	// NewRecvPacketBufferByData make RecvPacketBuffer by exist data
-	func NewRecvPacketBufferByData(rdata []byte) *RecvPacketBuffer {
-		pb := &RecvPacketBuffer{
-			RecvBuffer: rdata,
-			RecvLen:    len(rdata),
-		}
-		return pb
-	}
-
 	// GetHeader make header and return
 	// if data is insufficent, return empty header
 	func (pb *RecvPacketBuffer) GetHeader() Header {
