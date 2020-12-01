@@ -1980,7 +1980,7 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 	
 	func (wsc *Connection) sendLoop(sendRecvCtx context.Context) {
 		defer wsc.SendRecvStop()
-		oldbuf := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
+		sendBuffer := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {
@@ -1988,7 +1988,7 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-wsc.sendCh:
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf[:%[1]s_packet.HeaderLen])
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}
@@ -2215,7 +2215,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) error {
 
 		defer SendRecvStop()
-		oldbuf := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
+		sendBuffer := make([]byte, %[1]s_packet.HeaderLen)
 		var err error
 	loop:
 		for {
@@ -2227,7 +2227,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 					break loop
 				}
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:%[1]s_packet.HeaderLen])
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}
@@ -2319,7 +2319,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) error {
 
 		defer SendRecvStop()
-		oldbuf := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
+		sendBuffer := make([]byte, %[1]s_packet.HeaderLen, %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {
@@ -2330,7 +2330,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:%[1]s_packet.HeaderLen])
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}

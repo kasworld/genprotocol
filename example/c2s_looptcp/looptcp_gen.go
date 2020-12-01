@@ -30,7 +30,7 @@ func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCP
 ) error {
 
 	defer SendRecvStop()
-	oldbuf := make([]byte, c2s_packet.HeaderLen, c2s_packet.MaxPacketLen)
+	sendBuffer := make([]byte, c2s_packet.HeaderLen, c2s_packet.MaxPacketLen)
 	var err error
 loop:
 	for {
@@ -41,7 +41,7 @@ loop:
 			if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 				break loop
 			}
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, oldbuf[:c2s_packet.HeaderLen])
+			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}

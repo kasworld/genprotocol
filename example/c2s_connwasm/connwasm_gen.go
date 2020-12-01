@@ -82,7 +82,7 @@ func (wsc *Connection) wsError(this js.Value, args []js.Value) interface{} {
 
 func (wsc *Connection) sendLoop(sendRecvCtx context.Context) {
 	defer wsc.SendRecvStop()
-	oldbuf := make([]byte, c2s_packet.HeaderLen, c2s_packet.MaxPacketLen)
+	sendBuffer := make([]byte, c2s_packet.HeaderLen, c2s_packet.MaxPacketLen)
 	var err error
 loop:
 	for {
@@ -90,7 +90,7 @@ loop:
 		case <-sendRecvCtx.Done():
 			break loop
 		case pk := <-wsc.sendCh:
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, oldbuf[:c2s_packet.HeaderLen])
+			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}
