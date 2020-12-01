@@ -2367,7 +2367,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 						err = lerr
 						break loop
 					}
-					if err = HandleRecvPacketFn(header, append([]byte{}, rbody...)); err != nil {
+					if err = HandleRecvPacketFn(header, append([]byte(nil), rbody...)); err != nil {
 						break loop
 					}
 					// reuse 
