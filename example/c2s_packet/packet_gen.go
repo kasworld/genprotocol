@@ -139,9 +139,16 @@ func (h *Header) BodyType() byte {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// func NewSendPacketBuffer() []byte {
-// 	return make([]byte, MaxPacketLen)
-// }
+func ByteList2HeaderBody(rdata []byte) (Header, []byte, error) {
+	if len(rdata) < HeaderLen {
+		return Header{}, nil, fmt.Errorf("header not complete")
+	}
+	header := MakeHeaderFromBytes(rdata)
+	if len(rdata) != HeaderLen+int(header.bodyLen) {
+		return header, nil, fmt.Errorf("packet not complete")
+	}
+	return header, rdata[HeaderLen : HeaderLen+int(header.bodyLen)], nil
+}
 
 func NewRecvPacketBuffer() *RecvPacketBuffer {
 	pb := &RecvPacketBuffer{
