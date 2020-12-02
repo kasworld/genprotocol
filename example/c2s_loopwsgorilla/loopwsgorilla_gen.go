@@ -18,7 +18,7 @@ func SendControl(
 	return wsConn.WriteControl(mt, []byte{}, time.Now().Add(PacketWriteTimeOut))
 }
 
-func SendPacket(wsConn *websocket.Conn, sendBuffer []byte) error {
+func WriteBytes(wsConn *websocket.Conn, sendBuffer []byte) error {
 	return wsConn.WriteMessage(websocket.BinaryMessage, sendBuffer)
 }
 
@@ -46,7 +46,7 @@ loop:
 			if err != nil {
 				break loop
 			}
-			if err = SendPacket(wsConn, sendBuffer); err != nil {
+			if err = WriteBytes(wsConn, sendBuffer); err != nil {
 				break loop
 			}
 			if err = handleSentPacketFn(pk.Header); err != nil {

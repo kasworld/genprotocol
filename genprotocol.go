@@ -2139,7 +2139,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return wsConn.WriteControl(mt, []byte{}, time.Now().Add(PacketWriteTimeOut))
 	}
 	
-	func SendPacket(wsConn *websocket.Conn, sendBuffer []byte) error {
+	func WriteBytes(wsConn *websocket.Conn, sendBuffer []byte) error {
 		return wsConn.WriteMessage(websocket.BinaryMessage, sendBuffer)
 	}
 	
@@ -2167,7 +2167,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err != nil {
 					break loop
 				}
-				if err = SendPacket(wsConn, sendBuffer); err != nil {
+				if err = WriteBytes(wsConn, sendBuffer); err != nil {
 					break loop
 				}
 				if err = handleSentPacketFn(pk.Header); err != nil {
@@ -2235,7 +2235,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	)
 	`, genArgs.Prefix+postfix)
 	fmt.Fprintf(&buf, `
-	func SendPacket(conn *net.TCPConn, buf []byte) error {
+	func WriteBytes(conn io.Writer, buf []byte) error {
 		toWrite := len(buf)
 		for l := 0; l < toWrite; {
 			n, err := conn.Write(buf[l:toWrite])
@@ -2270,7 +2270,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err != nil {
 					break loop
 				}
-				if err = SendPacket(tcpConn, sendBuffer); err != nil {
+				if err = WriteBytes(tcpConn, sendBuffer); err != nil {
 					break loop
 				}
 				if err = handleSentPacketFn(pk.Header); err != nil {

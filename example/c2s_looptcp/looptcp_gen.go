@@ -4,13 +4,14 @@ package c2s_looptcp
 
 import (
 	"context"
+	"io"
 	"net"
 	"time"
 
 	"github.com/kasworld/genprotocol/example/c2s_packet"
 )
 
-func SendPacket(conn *net.TCPConn, buf []byte) error {
+func WriteBytes(conn io.Writer, buf []byte) error {
 	toWrite := len(buf)
 	for l := 0; l < toWrite; {
 		n, err := conn.Write(buf[l:toWrite])
@@ -45,7 +46,7 @@ loop:
 			if err != nil {
 				break loop
 			}
-			if err = SendPacket(tcpConn, sendBuffer); err != nil {
+			if err = WriteBytes(tcpConn, sendBuffer); err != nil {
 				break loop
 			}
 			if err = handleSentPacketFn(pk.Header); err != nil {
