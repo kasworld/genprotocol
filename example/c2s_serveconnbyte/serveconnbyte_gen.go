@@ -230,13 +230,18 @@ func (scb *ServeConnByte) handleRecvPacket(rheader c2s_packet.Header, rbody []by
 	}
 	statObj.BeforeAPICall()
 
-	// timeout api call
-	apiResult := scb.callAPI_timed(rheader, rbody)
-	sheader, sbody, apierr := apiResult.header, apiResult.body, apiResult.err
-
-	// no timeout api call
-	//fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
-	//sheader, sbody, apierr := fn(scb, rheader, rbody)
+	var sheader c2s_packet.Header
+	var sbody interface{}
+	var apierr error
+	if c2s_const.ServerAPICallTimeOutDur != 0 {
+		// timeout api call
+		apiResult := scb.callAPI_timed(rheader, rbody)
+		sheader, sbody, apierr = apiResult.header, apiResult.body, apiResult.err
+	} else {
+		// no timeout api call
+		fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
+		sheader, sbody, apierr = fn(scb, rheader, rbody)
+	}
 
 	statObj.AfterAPICall()
 

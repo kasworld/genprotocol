@@ -378,7 +378,7 @@ func buildConst(genArgs GenArgs, postfix string) *bytes.Buffer {
 	const (
 		// MaxBodyLen set to max body len, affect send/recv buffer size
 		MaxBodyLen = 0xffff
-		// ServerAPICallTimeOutDur api call watchdog timer
+		// ServerAPICallTimeOutDur api call watchdog timer, if 0 no api time out
 		ServerAPICallTimeOutDur = time.Second * 2
 	)
 	`, genArgs.Prefix+postfix)
@@ -1585,13 +1585,19 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		statObj.BeforeAPICall()
 
-		// timeout api call
-		apiResult := scb.callAPI_timed(rheader, rbody)
-		sheader, sbody, apierr := apiResult.header, apiResult.body, apiResult.err
 
-		// no timeout api call
-		//fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
-		//sheader, sbody, apierr := fn(scb, rheader, rbody)
+		var sheader %[1]s_packet.Header
+		var sbody interface{}
+		var apierr error
+		if %[1]s_const.ServerAPICallTimeOutDur != 0 {
+			// timeout api call
+			apiResult := scb.callAPI_timed(rheader, rbody)
+			sheader, sbody, apierr = apiResult.header, apiResult.body, apiResult.err
+		} else {
+			// no timeout api call
+			fn := scb.demuxReq2BytesAPIFnMap[rheader.Cmd]
+			sheader, sbody, apierr = fn(scb, rheader, rbody)
+		}
 
 		statObj.AfterAPICall()
 
