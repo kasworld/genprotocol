@@ -362,7 +362,7 @@ func buildConstTemplate(genArgs GenArgs, postfix string) *bytes.Buffer {
 		// MaxBodyLen set to max body len, affect send/recv buffer size
 		MaxBodyLen = 0xffff
 
-		// ServerAPICallTimeOutDur api call watchdog timer
+		// ServerAPICallTimeOutDur api call watchdog timer, 0 : no api timeout
 		ServerAPICallTimeOutDur = time.Second * 2
 	)
 	*/
