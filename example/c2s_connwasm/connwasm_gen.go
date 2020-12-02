@@ -120,7 +120,7 @@ func (wsc *Connection) handleWebsocketMessage(this js.Value, args []js.Value) in
 		js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 
 			rdata := ArrayBufferToSlice(args[0])
-			header, body, lerr := c2s_packet.ByteList2HeaderBody(rdata)
+			header, body, lerr := c2s_packet.Bytes2HeaderBody(rdata)
 			if lerr != nil {
 				JsLogError(lerr.Error())
 				wsc.SendRecvStop()

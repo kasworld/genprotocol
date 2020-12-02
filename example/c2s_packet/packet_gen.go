@@ -139,7 +139,7 @@ func (h *Header) BodyType() byte {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func ByteList2HeaderBody(rdata []byte) (Header, []byte, error) {
+func Bytes2HeaderBody(rdata []byte) (Header, []byte, error) {
 	if len(rdata) < HeaderLen {
 		return Header{}, nil, fmt.Errorf("header not complete")
 	}
@@ -150,7 +150,7 @@ func ByteList2HeaderBody(rdata []byte) (Header, []byte, error) {
 	return header, rdata[HeaderLen : HeaderLen+int(header.bodyLen)], nil
 }
 
-func ReadPacket(conn io.Reader) (Header, []byte, error) {
+func ReadHeaderBody(conn io.Reader) (Header, []byte, error) {
 	recvLen := 0
 	toRead := HeaderLen
 	readBuffer := make([]byte, toRead)

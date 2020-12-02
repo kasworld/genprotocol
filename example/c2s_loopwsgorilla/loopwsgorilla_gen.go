@@ -96,5 +96,5 @@ func RecvPacket(wsConn *websocket.Conn) (c2s_packet.Header, []byte, error) {
 	if mt != websocket.BinaryMessage {
 		return c2s_packet.Header{}, nil, fmt.Errorf("message not binary %v", mt)
 	}
-	return c2s_packet.ByteList2HeaderBody(rdata)
+	return c2s_packet.Bytes2HeaderBody(rdata)
 }

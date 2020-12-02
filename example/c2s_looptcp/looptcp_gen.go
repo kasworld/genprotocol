@@ -74,7 +74,7 @@ loop:
 			if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
 				break loop
 			}
-			header, rbody, err := c2s_packet.ReadPacket(tcpConn)
+			header, rbody, err := c2s_packet.ReadHeaderBody(tcpConn)
 			if err != nil {
 				return err
 			}

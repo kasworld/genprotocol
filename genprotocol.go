@@ -516,7 +516,7 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 
 	///////////////////////////////////////////////////////////////////////////////
 
-	func ByteList2HeaderBody(rdata []byte) (Header, []byte, error) {
+	func Bytes2HeaderBody(rdata []byte) (Header, []byte, error) {
 		if len(rdata) < HeaderLen {
 			return Header{}, nil, fmt.Errorf("header not complete")
 		}
@@ -527,7 +527,7 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return header, rdata[HeaderLen : HeaderLen+int(header.bodyLen)], nil
 	}
 
-	func ReadPacket(conn io.Reader) (Header, []byte, error) {
+	func ReadHeaderBody(conn io.Reader) (Header, []byte, error) {
 		recvLen := 0
 		toRead := HeaderLen
 		readBuffer := make([]byte, toRead)
@@ -1955,7 +1955,7 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 			js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 	
 				rdata := ArrayBufferToSlice(args[0])
-				header, body, lerr := %[1]s_packet.ByteList2HeaderBody(rdata)
+				header, body, lerr := %[1]s_packet.Bytes2HeaderBody(rdata)
 				if lerr != nil {
 					JsLogError(lerr.Error())
 					wsc.SendRecvStop()
@@ -2217,7 +2217,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 		if mt != websocket.BinaryMessage {
 			return %[1]s_packet.Header{}, nil, fmt.Errorf("message not binary %%v", mt)
 		}
-		return %[1]s_packet.ByteList2HeaderBody(rdata)
+		return %[1]s_packet.Bytes2HeaderBody(rdata)
 	}
 	`, genArgs.Prefix)
 	return &buf
@@ -2299,7 +2299,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
-				header, rbody, err := %[1]s_packet.ReadPacket(tcpConn)
+				header, rbody, err := %[1]s_packet.ReadHeaderBody(tcpConn)
 				if err != nil {
 					return err
 				}
