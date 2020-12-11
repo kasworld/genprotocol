@@ -39,7 +39,7 @@ loop:
 		case <-sendRecvCtx.Done():
 			break loop
 		case pk := <-SendCh:
-			sendBuffer, err := c2s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
+			sendBuffer, err = c2s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}

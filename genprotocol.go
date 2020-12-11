@@ -2247,7 +2247,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-SendCh:
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
+				sendBuffer, err = %[1]s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}
