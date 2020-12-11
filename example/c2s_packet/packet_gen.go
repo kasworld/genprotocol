@@ -105,7 +105,7 @@ func MakeHeaderFromBytes(buf []byte) Header {
 	return h
 }
 
-func (h Header) toBytesAt(buf []byte) {
+func (h Header) ToBytesAt(buf []byte) {
 	binary.LittleEndian.PutUint32(buf[0:4], h.bodyLen)
 	binary.LittleEndian.PutUint32(buf[4:8], h.ID)
 	binary.LittleEndian.PutUint16(buf[8:10], h.Cmd)
@@ -118,7 +118,7 @@ func (h Header) toBytesAt(buf []byte) {
 // ToByteList marshal header to bytelist
 func (h Header) ToByteList() []byte {
 	buf := make([]byte, HeaderLen)
-	h.toBytesAt(buf)
+	h.ToBytesAt(buf)
 	return buf
 }
 
@@ -194,6 +194,6 @@ func Packet2Bytes(pk *Packet,
 	}
 	pk.Header.bodyType = bodytype
 	pk.Header.bodyLen = uint32(bodyLen)
-	pk.Header.toBytesAt(newbuf)
+	pk.Header.ToBytesAt(newbuf)
 	return newbuf, nil
 }

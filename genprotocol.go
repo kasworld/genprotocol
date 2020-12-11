@@ -482,7 +482,7 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return h
 	}
 		
-	func (h Header) toBytesAt(buf []byte) {
+	func (h Header) ToBytesAt(buf []byte) {
 		binary.LittleEndian.PutUint32(buf[0:4], h.bodyLen)
 		binary.LittleEndian.PutUint32(buf[4:8], h.ID)
 		binary.LittleEndian.PutUint16(buf[8:10], h.Cmd)
@@ -495,7 +495,7 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 	// ToByteList marshal header to bytelist
 	func (h Header) ToByteList() []byte {
 		buf := make([]byte, HeaderLen)
-		h.toBytesAt(buf)
+		h.ToBytesAt(buf)
 		return buf
 	}
 	
@@ -571,7 +571,7 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		pk.Header.bodyType = bodytype
 		pk.Header.bodyLen = uint32(bodyLen)
-		pk.Header.toBytesAt(newbuf)
+		pk.Header.ToBytesAt(newbuf)
 		return newbuf, nil
 	}
 	`, genArgs.Prefix)
@@ -689,31 +689,31 @@ func buildMSGP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	const unmarshalMapHeader = `
 	var %[2]s = [...]func(h %[1]s_packet.Header,bodyData []byte) (interface{}, error) {
 	`
-	const unmarshalMapBody = "%[1]s_idcmd:  unmarshal_%[2]s%[3]s, \n"
+	const unmarshalMapBody = "%[1]s_idcmd:  Unmarshal_%[2]s%[3]s, \n"
 
 	// req map
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "ReqUnmarshalMap")
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  Unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	// rsp map
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "RspUnmarshalMap")
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  Unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "NotiUnmarshalMap")
 	// noti map
 	for _, v := range genArgs.NotiIDs {
-		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  Unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	const unmarshalFunc = `
-	func unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
+	func Unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
 		var args %[3]s_obj.%[1]s%[2]s_data
 		if _, err := args.UnmarshalMsg(bodyData); err != nil {
 			return nil, err
@@ -779,31 +779,31 @@ func buildJSON(genArgs GenArgs, postfix string) *bytes.Buffer {
 	const unmarshalMapHeader = `
 	var %[2]s = [...]func(h %[1]s_packet.Header,bodyData []byte) (interface{}, error) {
 	`
-	const unmarshalMapBody = "%[1]s_idcmd:  unmarshal_%[2]s%[3]s, \n"
+	const unmarshalMapBody = "%[1]s_idcmd:  Unmarshal_%[2]s%[3]s, \n"
 
 	// req map
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "ReqUnmarshalMap")
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  Unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	// rsp map
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "RspUnmarshalMap")
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  Unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "NotiUnmarshalMap")
 	// noti map
 	for _, v := range genArgs.NotiIDs {
-		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  Unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	const unmarshalFunc = `
-	func unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
+	func Unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
 		var args %[3]s_obj.%[1]s%[2]s_data
 		if err := json.Unmarshal(bodyData, &args) ; err != nil {
 			return nil, err
@@ -867,31 +867,31 @@ func buildGOB(genArgs GenArgs, postfix string) *bytes.Buffer {
 	const unmarshalMapHeader = `
 	var %[2]s = [...]func(h %[1]s_packet.Header,bodyData []byte) (interface{}, error) {
 	`
-	const unmarshalMapBody = "%[1]s_idcmd:  unmarshal_%[2]s%[3]s, \n"
+	const unmarshalMapBody = "%[1]s_idcmd:  Unmarshal_%[2]s%[3]s, \n"
 
 	// req map
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "ReqUnmarshalMap")
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  Unmarshal_Req%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	// rsp map
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "RspUnmarshalMap")
 	for _, v := range genArgs.CmdIDs {
-		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idcmd.%[2]s:  Unmarshal_Rsp%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	fmt.Fprintf(&buf, unmarshalMapHeader, genArgs.Prefix, "NotiUnmarshalMap")
 	// noti map
 	for _, v := range genArgs.NotiIDs {
-		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
+		fmt.Fprintf(&buf, "%[1]s_idnoti.%[2]s:  Unmarshal_Noti%[2]s, \n", genArgs.Prefix, v[0])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
 	const unmarshalFunc = `
-	func unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
+	func Unmarshal_%[1]s%[2]s(h %[3]s_packet.Header,bodyData []byte) (interface{}, error) {
 		var args %[3]s_obj.%[1]s%[2]s_data
 		network := bytes.NewBuffer(bodyData)
 		dec := gob.NewDecoder(network)

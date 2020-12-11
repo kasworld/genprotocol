@@ -46,26 +46,26 @@ func UnmarshalPacket(h c2s_packet.Header, bodyData []byte) (interface{}, error) 
 }
 
 var ReqUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface{}, error){
-	c2s_idcmd.InvalidCmd: unmarshal_ReqInvalidCmd,
-	c2s_idcmd.Login:      unmarshal_ReqLogin,
-	c2s_idcmd.Heartbeat:  unmarshal_ReqHeartbeat,
-	c2s_idcmd.Chat:       unmarshal_ReqChat,
-	c2s_idcmd.Act:        unmarshal_ReqAct,
+	c2s_idcmd.InvalidCmd: Unmarshal_ReqInvalidCmd,
+	c2s_idcmd.Login:      Unmarshal_ReqLogin,
+	c2s_idcmd.Heartbeat:  Unmarshal_ReqHeartbeat,
+	c2s_idcmd.Chat:       Unmarshal_ReqChat,
+	c2s_idcmd.Act:        Unmarshal_ReqAct,
 }
 
 var RspUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface{}, error){
-	c2s_idcmd.InvalidCmd: unmarshal_RspInvalidCmd,
-	c2s_idcmd.Login:      unmarshal_RspLogin,
-	c2s_idcmd.Heartbeat:  unmarshal_RspHeartbeat,
-	c2s_idcmd.Chat:       unmarshal_RspChat,
-	c2s_idcmd.Act:        unmarshal_RspAct,
+	c2s_idcmd.InvalidCmd: Unmarshal_RspInvalidCmd,
+	c2s_idcmd.Login:      Unmarshal_RspLogin,
+	c2s_idcmd.Heartbeat:  Unmarshal_RspHeartbeat,
+	c2s_idcmd.Chat:       Unmarshal_RspChat,
+	c2s_idcmd.Act:        Unmarshal_RspAct,
 }
 
 var NotiUnmarshalMap = [...]func(h c2s_packet.Header, bodyData []byte) (interface{}, error){
-	c2s_idnoti.Broadcast: unmarshal_NotiBroadcast,
+	c2s_idnoti.Broadcast: Unmarshal_NotiBroadcast,
 }
 
-func unmarshal_ReqInvalidCmd(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_ReqInvalidCmd(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.ReqInvalidCmd_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func unmarshal_ReqInvalidCmd(h c2s_packet.Header, bodyData []byte) (interface{},
 	return &args, nil
 }
 
-func unmarshal_RspInvalidCmd(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_RspInvalidCmd(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.RspInvalidCmd_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func unmarshal_RspInvalidCmd(h c2s_packet.Header, bodyData []byte) (interface{},
 	return &args, nil
 }
 
-func unmarshal_ReqLogin(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_ReqLogin(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.ReqLogin_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func unmarshal_ReqLogin(h c2s_packet.Header, bodyData []byte) (interface{}, erro
 	return &args, nil
 }
 
-func unmarshal_RspLogin(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_RspLogin(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.RspLogin_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func unmarshal_RspLogin(h c2s_packet.Header, bodyData []byte) (interface{}, erro
 	return &args, nil
 }
 
-func unmarshal_ReqHeartbeat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_ReqHeartbeat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.ReqHeartbeat_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func unmarshal_ReqHeartbeat(h c2s_packet.Header, bodyData []byte) (interface{}, 
 	return &args, nil
 }
 
-func unmarshal_RspHeartbeat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_RspHeartbeat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.RspHeartbeat_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func unmarshal_RspHeartbeat(h c2s_packet.Header, bodyData []byte) (interface{}, 
 	return &args, nil
 }
 
-func unmarshal_ReqChat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_ReqChat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.ReqChat_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func unmarshal_ReqChat(h c2s_packet.Header, bodyData []byte) (interface{}, error
 	return &args, nil
 }
 
-func unmarshal_RspChat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_RspChat(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.RspChat_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func unmarshal_RspChat(h c2s_packet.Header, bodyData []byte) (interface{}, error
 	return &args, nil
 }
 
-func unmarshal_ReqAct(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_ReqAct(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.ReqAct_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func unmarshal_ReqAct(h c2s_packet.Header, bodyData []byte) (interface{}, error)
 	return &args, nil
 }
 
-func unmarshal_RspAct(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_RspAct(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.RspAct_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func unmarshal_RspAct(h c2s_packet.Header, bodyData []byte) (interface{}, error)
 	return &args, nil
 }
 
-func unmarshal_NotiBroadcast(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
+func Unmarshal_NotiBroadcast(h c2s_packet.Header, bodyData []byte) (interface{}, error) {
 	var args c2s_obj.NotiBroadcast_data
 	if _, err := args.UnmarshalMsg(bodyData); err != nil {
 		return nil, err
