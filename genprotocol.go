@@ -1920,7 +1920,7 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-wsc.sendCh:
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(pk, wsc.marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
+				sendBuffer, err = %[1]s_packet.Packet2Bytes(pk, wsc.marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}
@@ -2144,7 +2144,7 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				err = SendControl(wsConn, websocket.CloseMessage, timeout)
 				break loop
 			case pk := <-SendCh:
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
+				sendBuffer, err = %[1]s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}
