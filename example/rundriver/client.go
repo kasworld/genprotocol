@@ -76,7 +76,7 @@ type App struct {
 
 	c2scWS            *c2s_connwsgorilla.Connection
 	c2scTCP           *c2s_conntcp.Connection
-	EnqueueSendPacket func(pk c2s_packet.Packet) error
+	EnqueueSendPacket func(pk *c2s_packet.Packet) error
 
 	sendRecvStop func()
 	apistat      *c2s_statcallapi.StatCallAPI
@@ -98,7 +98,7 @@ func NewApp(addr string) *App {
 	app.sendRecvStop = func() {
 		fmt.Printf("Too early sendRecvStop call\n")
 	}
-	app.EnqueueSendPacket = func(pk c2s_packet.Packet) error {
+	app.EnqueueSendPacket = func(pk *c2s_packet.Packet) error {
 		fmt.Printf("Too early EnqueueSendPacket call\n")
 		return nil
 	}
@@ -154,39 +154,39 @@ func (app *App) sendTestPacket() error {
 }
 
 func (app *App) connectWS(ctx context.Context) {
-	app.c2scWS = c2s_connwsgorilla.New(
-		readTimeoutSec, writeTimeoutSec,
-		gMarshalBodyFn,
-		app.handleRecvPacket,
-		app.handleSentPacket,
-	)
+	app.c2scWS = c2s_connwsgorilla.New(10)
 	if err := app.c2scWS.ConnectTo(app.addr); err != nil {
 		fmt.Printf("%v\n", err)
 		app.sendRecvStop()
 		return
 	}
 	app.EnqueueSendPacket = app.c2scWS.EnqueueSendPacket
-	app.c2scWS.Run(ctx)
-}
-
-func (app *App) connectTCP(ctx context.Context) {
-	app.c2scTCP = c2s_conntcp.New(
+	app.c2scWS.Run(ctx,
 		readTimeoutSec, writeTimeoutSec,
 		gMarshalBodyFn,
 		app.handleRecvPacket,
 		app.handleSentPacket,
 	)
+}
+
+func (app *App) connectTCP(ctx context.Context) {
+	app.c2scTCP = c2s_conntcp.New(10)
 	if err := app.c2scTCP.ConnectTo(app.addr); err != nil {
 		fmt.Printf("%v\n", err)
 		app.sendRecvStop()
 		return
 	}
 	app.EnqueueSendPacket = app.c2scTCP.EnqueueSendPacket
-	app.c2scTCP.Run(ctx)
+	app.c2scTCP.Run(ctx,
+		readTimeoutSec, writeTimeoutSec,
+		gMarshalBodyFn,
+		app.handleRecvPacket,
+		app.handleSentPacket,
+	)
 }
 
-func (app *App) handleSentPacket(header c2s_packet.Header) error {
-	if err := app.apistat.AfterSendReq(header); err != nil {
+func (app *App) handleSentPacket(pk *c2s_packet.Packet) error {
+	if err := app.apistat.AfterSendReq(pk.Header); err != nil {
 		return err
 	}
 	return nil
@@ -248,7 +248,7 @@ func (app *App) ReqWithRspFn(cmd c2s_idcmd.CommandID, body interface{},
 	}
 	app.pid2statobj.Add(spk.Header.ID, psobj)
 
-	if err := app.EnqueueSendPacket(spk); err != nil {
+	if err := app.EnqueueSendPacket(&spk); err != nil {
 		fmt.Printf("End %v %v %v\n", app, spk, err)
 		app.sendRecvStop()
 		return fmt.Errorf("Send fail %v %v", app, err)

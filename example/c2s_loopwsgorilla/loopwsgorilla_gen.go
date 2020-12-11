@@ -24,9 +24,9 @@ func WriteBytes(wsConn *websocket.Conn, sendBuffer []byte) error {
 
 func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), wsConn *websocket.Conn,
 	timeout time.Duration,
-	SendCh chan c2s_packet.Packet,
+	SendCh chan *c2s_packet.Packet,
 	marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-	handleSentPacketFn func(header c2s_packet.Header) error,
+	handleSentPacketFn func(pk *c2s_packet.Packet) error,
 ) error {
 
 	defer SendRecvStop()
@@ -39,17 +39,17 @@ loop:
 			err = SendControl(wsConn, websocket.CloseMessage, timeout)
 			break loop
 		case pk := <-SendCh:
-			if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+			sendBuffer, err := c2s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
+			if err != nil {
 				break loop
 			}
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
-			if err != nil {
+			if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 				break loop
 			}
 			if err = WriteBytes(wsConn, sendBuffer); err != nil {
 				break loop
 			}
-			if err = handleSentPacketFn(pk.Header); err != nil {
+			if err = handleSentPacketFn(pk); err != nil {
 				break loop
 			}
 		}

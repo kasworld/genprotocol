@@ -1389,7 +1389,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	
 	type ServeConnByte struct {
 		connData         interface{} // custom data for this conn
-		sendCh           chan %[1]s_packet.Packet
+		sendCh           chan *%[1]s_packet.Packet
 		sendRecvStop     func()
 		authorCmdList    *%[1]s_authorize.AuthorizedCmds
 		pid2ApiStatObj   *%[1]s_statserveapi.PacketID2StatObj
@@ -1415,7 +1415,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) *ServeConnByte {
 		scb := &ServeConnByte{
 			connData:               connData,
-			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
+			sendCh:                 make(chan *%[1]s_packet.Packet, sendBufferSize),
 			pid2ApiStatObj:         %[1]s_statserveapi.NewPacketID2StatObj(),
 			apiStat:                %[1]s_statserveapi.New(),
 			notiStat:               %[1]s_statnoti.New(),
@@ -1445,7 +1445,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) *ServeConnByte {
 		scb := &ServeConnByte{
 			connData:               connData,
-			sendCh:                 make(chan %[1]s_packet.Packet, sendBufferSize),
+			sendCh:                 make(chan *%[1]s_packet.Packet, sendBufferSize),
 			pid2ApiStatObj:         %[1]s_statserveapi.NewPacketID2StatObj(),
 			apiStat:                apiStat,
 			notiStat:               notiStat,
@@ -1543,24 +1543,24 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 		return returnerr
 	}
-	func (scb *ServeConnByte) handleSentPacket(header %[1]s_packet.Header) error {
+	func (scb *ServeConnByte) handleSentPacket(pk *%[1]s_packet.Packet) error {
 		scb.sendCounter.Inc()
-		switch header.FlowType {
+		switch pk.Header.FlowType {
 		default:
-			return fmt.Errorf("invalid packet type %%s %%v", scb, header)
+			return fmt.Errorf("invalid packet type %%s %%v", scb, pk.Header)
 	
 		case %[1]s_packet.Request:
-			return fmt.Errorf("request packet not supported %%s %%v", scb, header)
+			return fmt.Errorf("request packet not supported %%s %%v", scb, pk.Header)
 	
 		case %[1]s_packet.Response:
-			statOjb := scb.pid2ApiStatObj.Del(header.ID)
+			statOjb := scb.pid2ApiStatObj.Del(pk.Header.ID)
 			if statOjb != nil {
-				statOjb.AfterSendRsp(header)
+				statOjb.AfterSendRsp(pk.Header)
 			} else {
-				return fmt.Errorf("send StatObj not found %%v", header)
+				return fmt.Errorf("send StatObj not found %%v", pk.Header)
 			}
 		case %[1]s_packet.Notification:
-			scb.notiStat.Add(header)
+			scb.notiStat.Add(pk.Header)
 		}
 		return nil
 	}
@@ -1611,7 +1611,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 		sheader.FlowType = %[1]s_packet.Response
 		sheader.Cmd = rheader.Cmd
 		sheader.ID = rheader.ID
-		rpk := %[1]s_packet.Packet{
+		rpk := &%[1]s_packet.Packet{
 			Header: sheader,
 			Body:   sbody,
 		}
@@ -1638,7 +1638,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 			return callAPIResult{rheader, nil, fmt.Errorf("APICall Timeout %%v", rheader)}
 		}
 	}
-	func (scb *ServeConnByte) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
+	func (scb *ServeConnByte) EnqueueSendPacket(pk *%[1]s_packet.Packet) error {
 		select {
 		case scb.sendCh <- pk:
 			return nil
@@ -1648,7 +1648,7 @@ func buildServeConnByte(genArgs GenArgs, postfix string) *bytes.Buffer {
 	}
 	func (scb *ServeConnByte) SendNotiPacket(
 		cmd %[1]s_idnoti.NotiID, body interface{}) error {
-		err := scb.EnqueueSendPacket(%[1]s_packet.Packet{
+		err := scb.EnqueueSendPacket(&%[1]s_packet.Packet{
 			%[1]s_packet.Header{
 				Cmd:      uint16(cmd),
 				FlowType: %[1]s_packet.Notification,
@@ -1741,29 +1741,13 @@ func buildConnTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	fmt.Fprintf(&buf, `
 	type Connection struct {
 		conn         *net.TCPConn
-		sendCh       chan %[1]s_packet.Packet
+		sendCh       chan *%[1]s_packet.Packet
 		sendRecvStop func()
-	
-		readTimeoutSec     time.Duration
-		writeTimeoutSec    time.Duration
-		marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
-		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error
-		handleSentPacketFn func(header %[1]s_packet.Header) error
 	}
 	
-	func New(
-		readTimeoutSec, writeTimeoutSec time.Duration,
-		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
-		handleSentPacketFn func(header %[1]s_packet.Header) error,
-	) *Connection {
+	func New(sendBufferSize int) *Connection {
 		tc := &Connection{
-			sendCh:             make(chan %[1]s_packet.Packet, 10),
-			readTimeoutSec:     readTimeoutSec,
-			writeTimeoutSec:    writeTimeoutSec,
-			marshalBodyFn:      marshalBodyFn,
-			handleRecvPacketFn: handleRecvPacketFn,
-			handleSentPacketFn: handleSentPacketFn,
+			sendCh:             make(chan *%[1]s_packet.Packet, sendBufferSize),
 		}
 	
 		tc.sendRecvStop = func() {
@@ -1791,7 +1775,12 @@ func buildConnTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 	}
 	
-	func (tc *Connection) Run(mainctx context.Context) error {
+	func (tc *Connection) Run(mainctx context.Context,
+		readTimeoutSec, writeTimeoutSec time.Duration,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
+		handleSentPacketFn func(pk *%[1]s_packet.Packet) error,
+	) error {
 		sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
 		tc.sendRecvStop = sendRecvCancel
 		var rtnerr error
@@ -1803,8 +1792,8 @@ func buildConnTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				sendRecvCtx,
 				tc.sendRecvStop,
 				tc.conn,
-				tc.readTimeoutSec,
-				tc.handleRecvPacketFn)
+				readTimeoutSec,
+				handleRecvPacketFn)
 			if err != nil {
 				rtnerr = err
 			}
@@ -1815,10 +1804,10 @@ func buildConnTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				sendRecvCtx,
 				tc.sendRecvStop,
 				tc.conn,
-				tc.writeTimeoutSec,
+				writeTimeoutSec,
 				tc.sendCh,
-				tc.marshalBodyFn,
-				tc.handleSentPacketFn)
+				marshalBodyFn,
+				handleSentPacketFn)
 			if err != nil {
 				rtnerr = err
 			}
@@ -1827,7 +1816,7 @@ func buildConnTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return rtnerr
 	}
 	
-	func (tc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
+	func (tc *Connection) EnqueueSendPacket(pk *%[1]s_packet.Packet) error {
 		select {
 		case tc.sendCh <- pk:
 			return nil
@@ -1856,11 +1845,11 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 		remoteAddr   string
 		conn         js.Value
 		SendRecvStop func()
-		sendCh       chan %[1]s_packet.Packet
+		sendCh       chan *%[1]s_packet.Packet
 	
 		marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
 		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error
-		handleSentPacketFn func(header %[1]s_packet.Header) error
+		handleSentPacketFn func(pk *%[1]s_packet.Packet) error
 	}
 	
 	func (wsc *Connection) String() string {
@@ -1872,11 +1861,11 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 		connAddr string,
 		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
 		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
-		handleSentPacketFn func(header %[1]s_packet.Header) error,
+		handleSentPacketFn func(pk *%[1]s_packet.Packet) error,
 	) *Connection {
 		wsc := &Connection{
 			remoteAddr:         connAddr,
-			sendCh:             make(chan %[1]s_packet.Packet, 10),
+			sendCh:             make(chan *%[1]s_packet.Packet, 10),
 			marshalBodyFn:      marshalBodyFn,
 			handleRecvPacketFn: handleRecvPacketFn,
 			handleSentPacketFn: handleSentPacketFn,
@@ -1931,14 +1920,14 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-wsc.sendCh:
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(pk, wsc.marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
 				if err != nil {
 					break loop
 				}
 				if err = wsc.sendPacket(sendBuffer); err != nil {
 					break loop
 				}
-				if err = wsc.handleSentPacketFn(pk.Header); err != nil {
+				if err = wsc.handleSentPacketFn(pk); err != nil {
 					break loop
 				}
 			}
@@ -1989,7 +1978,7 @@ func buildConnWasm(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return Uint8ArrayToSlice(js.Global().Get("Uint8Array").New(value))
 	}
 	
-	func (wsc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
+	func (wsc *Connection) EnqueueSendPacket(pk *%[1]s_packet.Packet) error {
 		select {
 		case wsc.sendCh <- pk:
 			return nil
@@ -2028,28 +2017,12 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	type Connection struct {
 		wsConn       *websocket.Conn
 		sendRecvStop func()
-		sendCh       chan %[1]s_packet.Packet
-	
-		readTimeoutSec     time.Duration
-		writeTimeoutSec    time.Duration
-		marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
-		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error
-		handleSentPacketFn func(header %[1]s_packet.Header) error
+		sendCh       chan *%[1]s_packet.Packet
 	}
 	
-	func New(
-		readTimeoutSec, writeTimeoutSec time.Duration,
-		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
-		handleSentPacketFn func(header %[1]s_packet.Header) error,
-	) *Connection {
+	func New(sendBufferSize int) *Connection {
 		tc := &Connection{
-			sendCh:             make(chan %[1]s_packet.Packet, 10),
-			readTimeoutSec:     readTimeoutSec,
-			writeTimeoutSec:    writeTimeoutSec,
-			marshalBodyFn:      marshalBodyFn,
-			handleRecvPacketFn: handleRecvPacketFn,
-			handleSentPacketFn: handleSentPacketFn,
+			sendCh: make(chan *%[1]s_packet.Packet, sendBufferSize),
 		}
 	
 		tc.sendRecvStop = func() {
@@ -2075,7 +2048,12 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 		}
 	}
 	
-	func (tc *Connection) Run(aictx context.Context) error {
+	func (tc *Connection) Run(aictx context.Context,
+		readTimeoutSec, writeTimeoutSec time.Duration,
+		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+		handleRecvPacketFn func(header %[1]s_packet.Header, body []byte) error,
+		handleSentPacketFn func(header *%[1]s_packet.Packet) error,
+	) error {
 		connCtx, ctxCancel := context.WithCancel(aictx)
 		tc.sendRecvStop = ctxCancel
 		var rtnerr error
@@ -2087,8 +2065,8 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				connCtx,
 				tc.sendRecvStop,
 				tc.wsConn,
-				tc.readTimeoutSec,
-				tc.handleRecvPacketFn,
+				readTimeoutSec,
+				handleRecvPacketFn,
 			)
 			if err != nil {
 				rtnerr = err
@@ -2100,10 +2078,10 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				connCtx,
 				tc.sendRecvStop,
 				tc.wsConn,
-				tc.writeTimeoutSec,
+				writeTimeoutSec,
 				tc.sendCh,
-				tc.marshalBodyFn,
-				tc.handleSentPacketFn,
+				marshalBodyFn,
+				handleSentPacketFn,
 			)
 			if err != nil {
 				rtnerr = err
@@ -2113,7 +2091,7 @@ func buildConnWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return rtnerr
 	}
 	
-	func (tc *Connection) EnqueueSendPacket(pk %[1]s_packet.Packet) error {
+	func (tc *Connection) EnqueueSendPacket(pk *%[1]s_packet.Packet) error {
 		select {
 		case tc.sendCh <- pk:
 			return nil
@@ -2151,9 +2129,9 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 	
 	func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), wsConn *websocket.Conn,
 		timeout time.Duration,
-		SendCh chan %[1]s_packet.Packet,
+		SendCh chan *%[1]s_packet.Packet,
 		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-		handleSentPacketFn func(header %[1]s_packet.Header) error,
+		handleSentPacketFn func(pk *%[1]s_packet.Packet) error,
 	) error {
 
 		defer SendRecvStop()
@@ -2166,17 +2144,17 @@ func buildLoopWSGorilla(genArgs GenArgs, postfix string) *bytes.Buffer {
 				err = SendControl(wsConn, websocket.CloseMessage, timeout)
 				break loop
 			case pk := <-SendCh:
-				if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
+				if err != nil {
 					break loop
 				}
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
-				if err != nil {
+				if err = wsConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 					break loop
 				}
 				if err = WriteBytes(wsConn, sendBuffer); err != nil {
 					break loop
 				}
-				if err = handleSentPacketFn(pk.Header); err != nil {
+				if err = handleSentPacketFn(pk); err != nil {
 					break loop
 				}
 			}
@@ -2255,9 +2233,9 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	
 	func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCPConn,
 		timeOut time.Duration,
-		SendCh chan %[1]s_packet.Packet,
+		SendCh chan *%[1]s_packet.Packet,
 		marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-		handleSentPacketFn func(header %[1]s_packet.Header) error,
+		handleSentPacketFn func(pk *%[1]s_packet.Packet) error,
 	) error {
 
 		defer SendRecvStop()
@@ -2269,17 +2247,17 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 			case <-sendRecvCtx.Done():
 				break loop
 			case pk := <-SendCh:
-				if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
+				sendBuffer, err := %[1]s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
+				if err != nil {
 					break loop
 				}
-				sendBuffer, err := %[1]s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:%[1]s_packet.HeaderLen])
-				if err != nil {
+				if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
 				if err = WriteBytes(tcpConn, sendBuffer); err != nil {
 					break loop
 				}
-				if err = handleSentPacketFn(pk.Header); err != nil {
+				if err = handleSentPacketFn(pk); err != nil {
 					break loop
 				}
 			}

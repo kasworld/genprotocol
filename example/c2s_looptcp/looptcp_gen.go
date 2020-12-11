@@ -25,9 +25,9 @@ func WriteBytes(conn io.Writer, buf []byte) error {
 
 func SendLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCPConn,
 	timeOut time.Duration,
-	SendCh chan c2s_packet.Packet,
+	SendCh chan *c2s_packet.Packet,
 	marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-	handleSentPacketFn func(header c2s_packet.Header) error,
+	handleSentPacketFn func(pk *c2s_packet.Packet) error,
 ) error {
 
 	defer SendRecvStop()
@@ -39,17 +39,17 @@ loop:
 		case <-sendRecvCtx.Done():
 			break loop
 		case pk := <-SendCh:
-			if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
+			sendBuffer, err := c2s_packet.Packet2Bytes(pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
+			if err != nil {
 				break loop
 			}
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
-			if err != nil {
+			if err = tcpConn.SetWriteDeadline(time.Now().Add(timeOut)); err != nil {
 				break loop
 			}
 			if err = WriteBytes(tcpConn, sendBuffer); err != nil {
 				break loop
 			}
-			if err = handleSentPacketFn(pk.Header); err != nil {
+			if err = handleSentPacketFn(pk); err != nil {
 				break loop
 			}
 		}

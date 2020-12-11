@@ -15,29 +15,13 @@ import (
 
 type Connection struct {
 	conn         *net.TCPConn
-	sendCh       chan c2s_packet.Packet
+	sendCh       chan *c2s_packet.Packet
 	sendRecvStop func()
-
-	readTimeoutSec     time.Duration
-	writeTimeoutSec    time.Duration
-	marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
-	handleRecvPacketFn func(header c2s_packet.Header, body []byte) error
-	handleSentPacketFn func(header c2s_packet.Header) error
 }
 
-func New(
-	readTimeoutSec, writeTimeoutSec time.Duration,
-	marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
-	handleRecvPacketFn func(header c2s_packet.Header, body []byte) error,
-	handleSentPacketFn func(header c2s_packet.Header) error,
-) *Connection {
+func New(sendBufferSize int) *Connection {
 	tc := &Connection{
-		sendCh:             make(chan c2s_packet.Packet, 10),
-		readTimeoutSec:     readTimeoutSec,
-		writeTimeoutSec:    writeTimeoutSec,
-		marshalBodyFn:      marshalBodyFn,
-		handleRecvPacketFn: handleRecvPacketFn,
-		handleSentPacketFn: handleSentPacketFn,
+		sendCh: make(chan *c2s_packet.Packet, sendBufferSize),
 	}
 
 	tc.sendRecvStop = func() {
@@ -65,7 +49,12 @@ func (tc *Connection) Cleanup() {
 	}
 }
 
-func (tc *Connection) Run(mainctx context.Context) error {
+func (tc *Connection) Run(mainctx context.Context,
+	readTimeoutSec, writeTimeoutSec time.Duration,
+	marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
+	handleRecvPacketFn func(header c2s_packet.Header, body []byte) error,
+	handleSentPacketFn func(pk *c2s_packet.Packet) error,
+) error {
 	sendRecvCtx, sendRecvCancel := context.WithCancel(mainctx)
 	tc.sendRecvStop = sendRecvCancel
 	var rtnerr error
@@ -77,8 +66,8 @@ func (tc *Connection) Run(mainctx context.Context) error {
 			sendRecvCtx,
 			tc.sendRecvStop,
 			tc.conn,
-			tc.readTimeoutSec,
-			tc.handleRecvPacketFn)
+			readTimeoutSec,
+			handleRecvPacketFn)
 		if err != nil {
 			rtnerr = err
 		}
@@ -89,10 +78,10 @@ func (tc *Connection) Run(mainctx context.Context) error {
 			sendRecvCtx,
 			tc.sendRecvStop,
 			tc.conn,
-			tc.writeTimeoutSec,
+			writeTimeoutSec,
 			tc.sendCh,
-			tc.marshalBodyFn,
-			tc.handleSentPacketFn)
+			marshalBodyFn,
+			handleSentPacketFn)
 		if err != nil {
 			rtnerr = err
 		}
@@ -101,7 +90,7 @@ func (tc *Connection) Run(mainctx context.Context) error {
 	return rtnerr
 }
 
-func (tc *Connection) EnqueueSendPacket(pk c2s_packet.Packet) error {
+func (tc *Connection) EnqueueSendPacket(pk *c2s_packet.Packet) error {
 	select {
 	case tc.sendCh <- pk:
 		return nil

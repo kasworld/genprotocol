@@ -15,11 +15,11 @@ type Connection struct {
 	remoteAddr   string
 	conn         js.Value
 	SendRecvStop func()
-	sendCh       chan c2s_packet.Packet
+	sendCh       chan *c2s_packet.Packet
 
 	marshalBodyFn      func(interface{}, []byte) ([]byte, byte, error)
 	handleRecvPacketFn func(header c2s_packet.Header, body []byte) error
-	handleSentPacketFn func(header c2s_packet.Header) error
+	handleSentPacketFn func(pk *c2s_packet.Packet) error
 }
 
 func (wsc *Connection) String() string {
@@ -31,11 +31,11 @@ func New(
 	connAddr string,
 	marshalBodyFn func(interface{}, []byte) ([]byte, byte, error),
 	handleRecvPacketFn func(header c2s_packet.Header, body []byte) error,
-	handleSentPacketFn func(header c2s_packet.Header) error,
+	handleSentPacketFn func(pk *c2s_packet.Packet) error,
 ) *Connection {
 	wsc := &Connection{
 		remoteAddr:         connAddr,
-		sendCh:             make(chan c2s_packet.Packet, 10),
+		sendCh:             make(chan *c2s_packet.Packet, 10),
 		marshalBodyFn:      marshalBodyFn,
 		handleRecvPacketFn: handleRecvPacketFn,
 		handleSentPacketFn: handleSentPacketFn,
@@ -90,14 +90,14 @@ loop:
 		case <-sendRecvCtx.Done():
 			break loop
 		case pk := <-wsc.sendCh:
-			sendBuffer, err := c2s_packet.Packet2Bytes(&pk, wsc.marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
+			sendBuffer, err := c2s_packet.Packet2Bytes(pk, wsc.marshalBodyFn, sendBuffer[:c2s_packet.HeaderLen])
 			if err != nil {
 				break loop
 			}
 			if err = wsc.sendPacket(sendBuffer); err != nil {
 				break loop
 			}
-			if err = wsc.handleSentPacketFn(pk.Header); err != nil {
+			if err = wsc.handleSentPacketFn(pk); err != nil {
 				break loop
 			}
 		}
@@ -148,7 +148,7 @@ func ArrayBufferToSlice(value js.Value) []byte {
 	return Uint8ArrayToSlice(js.Global().Get("Uint8Array").New(value))
 }
 
-func (wsc *Connection) EnqueueSendPacket(pk c2s_packet.Packet) error {
+func (wsc *Connection) EnqueueSendPacket(pk *c2s_packet.Packet) error {
 	select {
 	case wsc.sendCh <- pk:
 		return nil

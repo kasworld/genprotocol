@@ -32,7 +32,7 @@ func (scb *ServeConnByte) String() string {
 
 type ServeConnByte struct {
 	connData       interface{} // custom data for this conn
-	sendCh         chan c2s_packet.Packet
+	sendCh         chan *c2s_packet.Packet
 	sendRecvStop   func()
 	authorCmdList  *c2s_authorize.AuthorizedCmds
 	pid2ApiStatObj *c2s_statserveapi.PacketID2StatObj
@@ -59,7 +59,7 @@ func New(
 ) *ServeConnByte {
 	scb := &ServeConnByte{
 		connData:               connData,
-		sendCh:                 make(chan c2s_packet.Packet, sendBufferSize),
+		sendCh:                 make(chan *c2s_packet.Packet, sendBufferSize),
 		pid2ApiStatObj:         c2s_statserveapi.NewPacketID2StatObj(),
 		apiStat:                c2s_statserveapi.New(),
 		notiStat:               c2s_statnoti.New(),
@@ -90,7 +90,7 @@ func NewWithStats(
 ) *ServeConnByte {
 	scb := &ServeConnByte{
 		connData:               connData,
-		sendCh:                 make(chan c2s_packet.Packet, sendBufferSize),
+		sendCh:                 make(chan *c2s_packet.Packet, sendBufferSize),
 		pid2ApiStatObj:         c2s_statserveapi.NewPacketID2StatObj(),
 		apiStat:                apiStat,
 		notiStat:               notiStat,
@@ -188,24 +188,24 @@ loop:
 	}
 	return returnerr
 }
-func (scb *ServeConnByte) handleSentPacket(header c2s_packet.Header) error {
+func (scb *ServeConnByte) handleSentPacket(pk *c2s_packet.Packet) error {
 	scb.sendCounter.Inc()
-	switch header.FlowType {
+	switch pk.Header.FlowType {
 	default:
-		return fmt.Errorf("invalid packet type %s %v", scb, header)
+		return fmt.Errorf("invalid packet type %s %v", scb, pk.Header)
 
 	case c2s_packet.Request:
-		return fmt.Errorf("request packet not supported %s %v", scb, header)
+		return fmt.Errorf("request packet not supported %s %v", scb, pk.Header)
 
 	case c2s_packet.Response:
-		statOjb := scb.pid2ApiStatObj.Del(header.ID)
+		statOjb := scb.pid2ApiStatObj.Del(pk.Header.ID)
 		if statOjb != nil {
-			statOjb.AfterSendRsp(header)
+			statOjb.AfterSendRsp(pk.Header)
 		} else {
-			return fmt.Errorf("send StatObj not found %v", header)
+			return fmt.Errorf("send StatObj not found %v", pk.Header)
 		}
 	case c2s_packet.Notification:
-		scb.notiStat.Add(header)
+		scb.notiStat.Add(pk.Header)
 	}
 	return nil
 }
@@ -255,7 +255,7 @@ func (scb *ServeConnByte) handleRecvPacket(rheader c2s_packet.Header, rbody []by
 	sheader.FlowType = c2s_packet.Response
 	sheader.Cmd = rheader.Cmd
 	sheader.ID = rheader.ID
-	rpk := c2s_packet.Packet{
+	rpk := &c2s_packet.Packet{
 		Header: sheader,
 		Body:   sbody,
 	}
@@ -284,7 +284,7 @@ func (scb *ServeConnByte) callAPI_timed(rheader c2s_packet.Header, rbody []byte)
 		return callAPIResult{rheader, nil, fmt.Errorf("APICall Timeout %v", rheader)}
 	}
 }
-func (scb *ServeConnByte) EnqueueSendPacket(pk c2s_packet.Packet) error {
+func (scb *ServeConnByte) EnqueueSendPacket(pk *c2s_packet.Packet) error {
 	select {
 	case scb.sendCh <- pk:
 		return nil
@@ -294,7 +294,7 @@ func (scb *ServeConnByte) EnqueueSendPacket(pk c2s_packet.Packet) error {
 }
 func (scb *ServeConnByte) SendNotiPacket(
 	cmd c2s_idnoti.NotiID, body interface{}) error {
-	err := scb.EnqueueSendPacket(c2s_packet.Packet{
+	err := scb.EnqueueSendPacket(&c2s_packet.Packet{
 		c2s_packet.Header{
 			Cmd:      uint16(cmd),
 			FlowType: c2s_packet.Notification,

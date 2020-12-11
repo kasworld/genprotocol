@@ -82,7 +82,7 @@ func (app *App) displayFrame() {
 	}
 }
 
-func (app *App) makePacket() c2s_packet.Packet {
+func (app *App) makePacket() *c2s_packet.Packet {
 	body := c2s_obj.ReqHeartbeat_data{}
 	hd := c2s_packet.Header{
 		Cmd:      uint16(c2s_idcmd.Heartbeat),
@@ -91,7 +91,7 @@ func (app *App) makePacket() c2s_packet.Packet {
 	}
 	app.pid++
 
-	return c2s_packet.Packet{
+	return &c2s_packet.Packet{
 		Header: hd,
 		Body:   body,
 	}
@@ -103,6 +103,6 @@ func handleRecvPacket(header c2s_packet.Header, body []byte) error {
 	return err
 }
 
-func handleSentPacket(header c2s_packet.Header) error {
+func handleSentPacket(pk *c2s_packet.Packet) error {
 	return nil
 }
