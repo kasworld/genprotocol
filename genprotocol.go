@@ -527,29 +527,27 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 		return header, rdata[HeaderLen : HeaderLen+int(header.bodyLen)], nil
 	}
 
-	func ReadHeaderBody(conn io.Reader) (Header, []byte, error) {
+	func ReadHeaderBody(conn io.Reader, buffer []byte) (Header, []byte, error) {
 		recvLen := 0
 		toRead := HeaderLen
-		readBuffer := make([]byte, toRead)
 		for recvLen < toRead {
-			n, err := conn.Read(readBuffer[recvLen:toRead])
+			n, err := conn.Read(buffer[recvLen:toRead])
 			if err != nil {
 				return Header{}, nil, err
 			}
 			recvLen += n
 		}
-		header := MakeHeaderFromBytes(readBuffer)
-		recvLen = 0
-		toRead = int(header.bodyLen)
-		readBuffer = make([]byte, toRead)
+		header := MakeHeaderFromBytes(buffer)
+		recvLen = HeaderLen
+		toRead = HeaderLen+int(header.bodyLen)
 		for recvLen < toRead {
-			n, err := conn.Read(readBuffer[recvLen:toRead])
+			n, err := conn.Read(buffer[recvLen:toRead])
 			if err != nil {
 				return header, nil, err
 			}
 			recvLen += n
 		}
-		return header, readBuffer, nil
+		return header, buffer[HeaderLen:toRead], nil
 	}
 	
 	// Packet2Bytes make packet to bytelist
@@ -2271,7 +2269,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) error {
 	
 		defer SendRecvStop()
-	
+		buffer := make([]byte, %[1]s_packet.HeaderLen+ %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {
@@ -2283,7 +2281,8 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 				if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
 					break loop
 				}
-				header, rbody, err := %[1]s_packet.ReadHeaderBody(tcpConn)
+				header, rbody, err := %[1]s_packet.ReadHeaderBody(
+					tcpConn,buffer)
 				if err != nil {
 					return err
 				}

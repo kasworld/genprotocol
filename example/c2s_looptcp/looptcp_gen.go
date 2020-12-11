@@ -63,7 +63,7 @@ func RecvLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCP
 ) error {
 
 	defer SendRecvStop()
-
+	buffer := make([]byte, c2s_packet.HeaderLen+c2s_packet.MaxPacketLen)
 	var err error
 loop:
 	for {
@@ -75,7 +75,8 @@ loop:
 			if err = tcpConn.SetReadDeadline(time.Now().Add(timeOut)); err != nil {
 				break loop
 			}
-			header, rbody, err := c2s_packet.ReadHeaderBody(tcpConn)
+			header, rbody, err := c2s_packet.ReadHeaderBody(
+				tcpConn, buffer)
 			if err != nil {
 				return err
 			}

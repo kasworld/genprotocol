@@ -150,29 +150,27 @@ func Bytes2HeaderBody(rdata []byte) (Header, []byte, error) {
 	return header, rdata[HeaderLen : HeaderLen+int(header.bodyLen)], nil
 }
 
-func ReadHeaderBody(conn io.Reader) (Header, []byte, error) {
+func ReadHeaderBody(conn io.Reader, buffer []byte) (Header, []byte, error) {
 	recvLen := 0
 	toRead := HeaderLen
-	readBuffer := make([]byte, toRead)
 	for recvLen < toRead {
-		n, err := conn.Read(readBuffer[recvLen:toRead])
+		n, err := conn.Read(buffer[recvLen:toRead])
 		if err != nil {
 			return Header{}, nil, err
 		}
 		recvLen += n
 	}
-	header := MakeHeaderFromBytes(readBuffer)
-	recvLen = 0
-	toRead = int(header.bodyLen)
-	readBuffer = make([]byte, toRead)
+	header := MakeHeaderFromBytes(buffer)
+	recvLen = HeaderLen
+	toRead = HeaderLen + int(header.bodyLen)
 	for recvLen < toRead {
-		n, err := conn.Read(readBuffer[recvLen:toRead])
+		n, err := conn.Read(buffer[recvLen:toRead])
 		if err != nil {
 			return header, nil, err
 		}
 		recvLen += n
 	}
-	return header, readBuffer, nil
+	return header, buffer[HeaderLen:toRead], nil
 }
 
 // Packet2Bytes make packet to bytelist
