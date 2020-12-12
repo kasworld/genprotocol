@@ -538,8 +538,7 @@ func buildPacket(genArgs GenArgs, postfix string) *bytes.Buffer {
 			recvLen += n
 		}
 		header := MakeHeaderFromBytes(buffer)
-		recvLen = HeaderLen
-		toRead = HeaderLen+int(header.bodyLen)
+		toRead += int(header.bodyLen)
 		for recvLen < toRead {
 			n, err := conn.Read(buffer[recvLen:toRead])
 			if err != nil {
