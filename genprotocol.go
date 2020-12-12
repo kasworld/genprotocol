@@ -2269,7 +2269,7 @@ func buildLoopTCP(genArgs GenArgs, postfix string) *bytes.Buffer {
 	) error {
 	
 		defer SendRecvStop()
-		buffer := make([]byte, %[1]s_packet.HeaderLen+ %[1]s_packet.MaxPacketLen)
+		buffer := make([]byte, %[1]s_packet.MaxPacketLen)
 		var err error
 	loop:
 		for {

@@ -63,7 +63,7 @@ func RecvLoop(sendRecvCtx context.Context, SendRecvStop func(), tcpConn *net.TCP
 ) error {
 
 	defer SendRecvStop()
-	buffer := make([]byte, c2s_packet.HeaderLen+c2s_packet.MaxPacketLen)
+	buffer := make([]byte, c2s_packet.MaxPacketLen)
 	var err error
 loop:
 	for {
