@@ -1,4 +1,4 @@
-# github.com/gorilla/websocket v1.4.2
+# github.com/gorilla/websocket v1.5.3
 ## explicit
 github.com/gorilla/websocket
 # github.com/kasworld/actpersec v0.0.0-20191019021204-8c24cd60715c
